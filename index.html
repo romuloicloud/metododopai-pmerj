@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#111621" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Método do Pai - Tutor IA PMERJ</title>
+  <meta name="description" content="Plataforma de estudos inteligente para o concurso PMERJ com Tutor IA." />
+  <link rel="icon" type="image/png" href="/assets/app-icon.png" />
+  <link rel="apple-touch-icon" href="/assets/app-icon.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+    rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ["Lexend", "sans-serif"],
+            grotesk: ["Space Grotesk", "sans-serif"],
+          },
+          colors: {
+            primary: "#0c2340",
+            "accent-gold": "#d4af37",
+            "background-light": "#f1f5f9",
+            "background-dark": "#0f172a",
+            "surface-dark": "#1e293b",
+            "navy-shade": "#05101f",
+            "custom-gold": "#d4af37",
+            "custom-silver": "#94a3b8",
+            "custom-bronze": "#b45309",
+          },
+          borderRadius: {
+            "DEFAULT": "0.5rem",
+            "lg": "1rem",
+            "xl": "1.5rem",
+            "2xl": "2rem",
+            "3xl": "2.5rem",
+            "full": "9999px"
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    html {
+      color-scheme: dark;
+    }
+
+    body {
+      font-family: 'Lexend', sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    #root {
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+
+    /* Custom scrollbar for Webkit browsers */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background-color: rgba(0, 0, 0, 0.2);
+      border-radius: 3px;
+    }
+
+    .dark ::-webkit-scrollbar-thumb {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Safe area para dispositivos com notch/gesture bar */
+    .pb-safe {
+      padding-bottom: env(safe-area-inset-bottom, 16px);
+    }
+
+    /* Botões mobile com tamanho mínimo de toque (44px) */
+    @media (max-width: 768px) {
+
+      button,
+      a[role="button"] {
+        min-height: 44px;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="/index.css">
+</head>
+
+<body class="bg-background-light dark:bg-background-dark">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>
