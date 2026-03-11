@@ -15,8 +15,15 @@ serve(async (req) => {
     }
 
     try {
-        const payload = await req.json()
-        const { webhook_token, order_status, customer, Subscription } = payload
+        // Kiwify sends webhooks as Form URL Encoded
+        const textData = await req.text();
+        const params = new URLSearchParams(textData);
+
+        const webhook_token = params.get('webhook_token');
+        const order_status = params.get('order_status');
+        const email = params.get('Customer[email]');
+        const sub_status = params.get('Subscription[status]');
+        const sub_id = params.get('Subscription[id]');
 
         // 1. Validar token da Kiwify para evitar fraudes
         if (webhook_token !== KIWIFY_TOKEN) {
@@ -24,7 +31,6 @@ serve(async (req) => {
             return new Response(JSON.stringify({ error: 'Unauthorized' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 })
         }
 
-        const email = customer?.email
         if (!email) {
             return new Response(JSON.stringify({ error: 'No email provided' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 })
         }
@@ -39,24 +45,34 @@ serve(async (req) => {
         let subscription_status = 'free';
 
         // 3. Regra de Negócio: Liberação ou Bloqueio Diante do Status do Kiwify
-        if (order_status === 'paid' || order_status === 'approved' || Subscription?.status === 'active') {
+        if (order_status === 'paid' || order_status === 'approved' || sub_status === 'active') {
             subscription_status = 'premium';
-        } else if (order_status === 'refunded' || order_status === 'chargedback' || Subscription?.status === 'canceled') {
+        } else if (order_status === 'refunded' || order_status === 'chargedback' || sub_status === 'canceled') {
             subscription_status = 'free';
         }
 
         let errorResult = null;
 
-        // 4. Executando a Modificação da Coluna subscription_status criada pelo SQL inicial
+        // 4. Buscar o ID do usuário pelo e-mail na tabela oficial (auth.users)
+        const { data: { users }, error: authError } = await supabaseAdmin.auth.admin.listUsers()
+        if (authError) throw authError;
+
+        const user = users.find(u => u.email === email);
+        if (!user) {
+            console.error(`Usuário não encontrado para o email: ${email}`);
+            return new Response(JSON.stringify({ error: 'User not found' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 })
+        }
+
+        // 5. Executando a Modificação da Coluna subscription_status criada pelo SQL inicial no PROFILE
         if (subscription_status === 'premium') {
             const { error } = await supabaseAdmin
                 .from('profiles')
                 .update({
                     subscription_status: 'premium',
-                    kiwify_subscription_id: Subscription?.id || null,
+                    kiwify_subscription_id: sub_id || null,
                     premium_since: new Date().toISOString()
                 })
-                .eq('email', email)
+                .eq('id', user.id)
 
             errorResult = error;
         } else if (subscription_status === 'free' && (order_status === 'refunded' || order_status === 'chargedback')) {
@@ -66,7 +82,7 @@ serve(async (req) => {
                     subscription_status: 'free',
                     kiwify_subscription_id: null
                 })
-                .eq('email', email)
+                .eq('id', user.id)
 
             errorResult = error;
         }
@@ -76,7 +92,7 @@ serve(async (req) => {
             throw errorResult;
         }
 
-        console.log(`Sucesso! Aluno com e-mail ${email} foi atualizado para ${subscription_status}`);
+        console.log(`Sucesso! Aluno com e-mail ${email} (ID: ${user.id}) foi atualizado para ${subscription_status}`);
 
         return new Response(JSON.stringify({ success: true, message: `Perfil do aluno atualizado para ${subscription_status}` }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
