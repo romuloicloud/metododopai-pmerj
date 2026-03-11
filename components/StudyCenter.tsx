@@ -5,6 +5,9 @@ import { TheoryLesson, Exam, View } from '../types';
 import { syllabus } from '../services/syllabusData';
 import { supabase } from '../services/supabaseClient';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
+import { useSubscription } from '../hooks/useSubscription';
+import { PaywallOverlay } from './PaywallOverlay';
+import type { UserProfile } from '../types';
 
 const SimpleTutorModal: React.FC<{ explanation: string; onClose: () => void }> = ({ explanation, onClose }) => {
     return (
@@ -215,6 +218,7 @@ const LessonView: React.FC<{ lesson: TheoryLesson; onBack: () => void; setView: 
 interface StudyCenterProps {
     onSelectExam: (exam: Exam) => void;
     setView: (view: View) => void;
+    userProfile: UserProfile | null;
 }
 
 const ExamDropdown: React.FC<{ onSelectExam: (exam: Exam) => void }> = ({ onSelectExam }) => {
@@ -275,7 +279,7 @@ const ExamDropdown: React.FC<{ onSelectExam: (exam: Exam) => void }> = ({ onSele
 
 
 
-const StudyCenter: React.FC<StudyCenterProps> = ({ onSelectExam, setView }) => {
+const StudyCenter: React.FC<StudyCenterProps> = ({ onSelectExam, setView, userProfile }) => {
     const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
     const [lesson, setLesson] = useState<TheoryLesson | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -285,6 +289,9 @@ const StudyCenter: React.FC<StudyCenterProps> = ({ onSelectExam, setView }) => {
     const [theoryHtml, setTheoryHtml] = useState<string | null>(null);
     const [isTheoryModalOpen, setIsTheoryModalOpen] = useState(false);
     const [preloadedExercises, setPreloadedExercises] = useState<any[]>([]);
+
+    // Assinatura Premium Kiwify
+    const { isPremium, loading: subscriptionLoading } = useSubscription();
 
     const handleTopicSelect = async (topic: string, subject: keyof typeof syllabus) => {
         setSelectedTopic(topic);
@@ -406,9 +413,23 @@ const StudyCenter: React.FC<StudyCenterProps> = ({ onSelectExam, setView }) => {
                     </div>
                 </section>
 
-                <section>
+                <section className="relative">
                     <h2 className="text-xs font-black text-primary/50 dark:text-slate-400 uppercase tracking-widest mb-3">Provas Anteriores</h2>
-                    <ExamDropdown onSelectExam={onSelectExam} />
+                    {subscriptionLoading ? (
+                        <div className="flex justify-center p-8"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>
+                    ) : isPremium ? (
+                        <ExamDropdown onSelectExam={onSelectExam} />
+                    ) : (
+                        <div className="relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 p-4 min-h-[300px] flex items-center justify-center bg-slate-50 dark:bg-slate-900/50">
+                            {/* Blurred background mock to show what they are missing */}
+                            <div className="absolute inset-0 blur-md opacity-40 pointer-events-none p-4 space-y-3">
+                                <div className="h-14 bg-white dark:bg-slate-800 rounded-lg w-full"></div>
+                                <div className="h-14 bg-white dark:bg-slate-800 rounded-lg w-full"></div>
+                                <div className="h-14 bg-white dark:bg-slate-800 rounded-lg w-full"></div>
+                            </div>
+                            <PaywallOverlay userProfile={userProfile} featureName="Provas Anteriores na Íntegra" />
+                        </div>
+                    )}
                 </section>
 
             </main>

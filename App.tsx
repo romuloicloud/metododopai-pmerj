@@ -12,11 +12,13 @@ import DiagnosticArena from './components/DiagnosticArena';
 import DiagnosticResult from './components/DiagnosticResult';
 import JourneyMap from './components/JourneyMap';
 import JourneyPhaseView from './components/JourneyPhase';
-import { View, Exam, DiagnosticAnswer, DiagnosticResult as DiagResultType, JourneyPhase } from './types';
+import { View, Exam, DiagnosticAnswer, DiagnosticResult as DiagResultType, JourneyPhase, UserProfile } from './types';
 import { supabase } from './services/supabaseClient';
 import { hasCompletedDiagnostic, analyzeDiagnosticResults, saveDiagnosticResult } from './services/diagnosticService';
 import { initializeJourney } from './services/journeyService';
 import { Session } from '@supabase/supabase-js';
+import { useSubscription } from './hooks/useSubscription';
+import { PaywallOverlay } from './components/PaywallOverlay';
 
 const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
@@ -27,6 +29,9 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isPaid, setIsPaid] = useState<boolean | null>(null);
   const [checkingDiagnostic, setCheckingDiagnostic] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+
+  const { isPremium, loading: subscriptionLoading } = useSubscription();
 
   useEffect(() => {
     const getSession = async () => {
@@ -61,10 +66,17 @@ const App: React.FC = () => {
     }
   }, [session]);
 
-  // Verificar se o usuário é pagante quando faz login
+  // Verificar se o usuário é pagante quando faz login e pegar perfil
   useEffect(() => {
     const checkPayment = async () => {
       if (session?.user) {
+        setUserProfile({
+          id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata?.name || '',
+          created_at: session.user.created_at
+        });
+
         const { data, error } = await supabase
           .from('profiles')
           .select('is_paid')
@@ -79,6 +91,7 @@ const App: React.FC = () => {
         }
       } else {
         setIsPaid(null);
+        setUserProfile(null);
       }
     };
     checkPayment();
@@ -166,13 +179,29 @@ const App: React.FC = () => {
       case 'DASHBOARD':
         return <Dashboard setView={setCurrentView} />;
       case 'PRACTICE':
+        if (subscriptionLoading) {
+          return <div className="flex justify-center items-center h-full"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
+        }
+        if (!isPremium) {
+          return (
+            <div className="relative h-full overflow-hidden bg-slate-50 dark:bg-slate-900/50">
+              {/* Blurred background mock */}
+              <div className="absolute inset-0 blur-md opacity-40 pointer-events-none p-6 space-y-4">
+                <div className="h-32 bg-white dark:bg-slate-800 rounded-xl w-full"></div>
+                <div className="h-16 bg-white dark:bg-slate-800 rounded-xl w-full"></div>
+                <div className="h-16 bg-white dark:bg-slate-800 rounded-xl w-full"></div>
+              </div>
+              <PaywallOverlay userProfile={userProfile} featureName="Treinador Infinito" />
+            </div>
+          );
+        }
         return <QuestionArena />;
       case 'RANKING':
         return <Ranking />;
       case 'STUDY_CENTER':
-        return <StudyCenter onSelectExam={handleSelectExam} setView={setCurrentView} />;
+        return <StudyCenter onSelectExam={handleSelectExam} setView={setCurrentView} userProfile={userProfile} />;
       case 'PAST_EXAM_PRACTICE':
-        return activeExam ? <PastExamArena exam={activeExam} onFinishExam={handleFinishExam} /> : <StudyCenter onSelectExam={handleSelectExam} setView={setCurrentView} />;
+        return activeExam ? <PastExamArena exam={activeExam} onFinishExam={handleFinishExam} /> : <StudyCenter onSelectExam={handleSelectExam} setView={setCurrentView} userProfile={userProfile} />;
       case 'DIAGNOSTIC_WELCOME':
         return <DiagnosticWelcome onStart={handleStartDiagnostic} />;
       case 'DIAGNOSTIC_ARENA':

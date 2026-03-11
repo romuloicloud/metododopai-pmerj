@@ -9,6 +9,13 @@ export interface User {
   targetSchool: 'PMERJ';
 }
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  created_at?: string;
+}
+
 export interface Question {
   id: string;
   topic: string;
