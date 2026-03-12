@@ -1,8 +1,5 @@
 import { supabase } from './supabaseClient';
-import { TopicProgress, RankEntry, UserStreak, DailyChallenge } from '../types';
-import { mockRanking } from './mockData';
-
-/**
+import { TopicProgress, RankEntry, UserStreak, DailyChallenge } from '../types';/**
  * Interface para os dados consolidados do painel por matéria.
  */
 export interface DashboardStats {
@@ -283,6 +280,7 @@ export const getRankingData = async (): Promise<RankEntry[]> => {
         const xp = (userScores[uid].score) * 10;
         const profile = profileMap[uid];
         return {
+            userId: uid,
             rank: 0,
             name: profile?.name || 'Aluno',
             xp,

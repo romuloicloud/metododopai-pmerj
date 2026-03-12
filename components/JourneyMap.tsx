@@ -49,7 +49,7 @@ const JourneyMap: React.FC<Props> = ({ onSelectPhase }) => {
                     border: 'border-slate-600',
                     text: 'text-slate-500',
                     shadow: '',
-                    icon: '🔒',
+                    icon: '📌',
                 };
         }
     };
@@ -126,19 +126,17 @@ const JourneyMap: React.FC<Props> = ({ onSelectPhase }) => {
                         <div key={phase.phaseNumber} className="flex flex-col items-center w-full max-w-sm">
                             {/* Linha conectora */}
                             {index > 0 && (
-                                <div className={`w-1 h-10 rounded-full ${phase.status === 'locked' ? 'bg-slate-700' : 'bg-gradient-to-b from-green-500/50 to-amber-500/50'
-                                    }`} />
+                                <div className={`w-1 h-10 rounded-full bg-gradient-to-b from-green-500/50 to-amber-500/50`} />
                             )}
 
                             {/* Card da fase */}
                             <button
-                                onClick={() => phase.status !== 'locked' && onSelectPhase(phase)}
-                                disabled={phase.status === 'locked'}
+                                onClick={() => onSelectPhase(phase)}
                                 className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all duration-300 ${style.border} ${phase.status === 'current'
-                                        ? `${style.bg} shadow-xl ${style.shadow} scale-105 ring-4 ring-amber-400/20`
-                                        : phase.status === 'completed'
-                                            ? `bg-slate-800/60 ${style.shadow}`
-                                            : 'bg-slate-800/30 cursor-not-allowed'
+                                    ? `${style.bg} shadow-xl ${style.shadow} scale-105 ring-4 ring-amber-400/20`
+                                    : phase.status === 'completed'
+                                        ? `bg-slate-800/60 ${style.shadow}`
+                                        : `bg-slate-800/80 hover:bg-slate-700/80 hover:scale-[1.02] cursor-pointer`
                                     }`}
                             >
                                 {/* Número/ícone da fase */}
@@ -149,12 +147,10 @@ const JourneyMap: React.FC<Props> = ({ onSelectPhase }) => {
 
                                 {/* Info da fase */}
                                 <div className="flex-1 text-left">
-                                    <p className={`text-sm font-bold font-display ${phase.status === 'locked' ? 'text-slate-500' : 'text-white'
-                                        }`}>
+                                    <p className={`text-sm font-bold font-display text-white`}>
                                         {phase.topic}
                                     </p>
-                                    <p className={`text-xs font-grotesk ${phase.status === 'locked' ? 'text-slate-600' : 'text-slate-400'
-                                        }`}>
+                                    <p className={`text-xs font-grotesk text-slate-400`}>
                                         {phase.subject}
                                     </p>
                                     {phase.status === 'completed' && renderStars(phase.stars)}
@@ -165,9 +161,9 @@ const JourneyMap: React.FC<Props> = ({ onSelectPhase }) => {
                                     )}
                                 </div>
 
-                                {/* Arrow ou lock */}
-                                <span className={`text-lg ${phase.status === 'locked' ? 'text-slate-600' : 'text-slate-400'}`}>
-                                    {phase.status === 'locked' ? '🔒' : '→'}
+                                {/* Arrow livre */}
+                                <span className={`text-lg transition-transform group-hover:translate-x-1 ${phase.status === 'completed' ? 'text-green-400' : 'text-slate-400'}`}>
+                                    →
                                 </span>
                             </button>
                         </div>

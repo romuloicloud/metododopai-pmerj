@@ -5,13 +5,11 @@ import { TheoryLesson, Exam, View } from '../types';
 import { syllabus } from '../services/syllabusData';
 import { supabase } from '../services/supabaseClient';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
-import { useSubscription } from '../hooks/useSubscription';
-import { PaywallOverlay } from './PaywallOverlay';
 import type { UserProfile } from '../types';
 
 const SimpleTutorModal: React.FC<{ explanation: string; onClose: () => void }> = ({ explanation, onClose }) => {
     return (
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-50 flex flex-col justify-end fixed">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex flex-col justify-end">
             <div className="flex flex-col items-center mb-[-24px] z-50">
                 <div className="w-24 h-24 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(22,75,182,0.5)] border-4 border-primary overflow-hidden">
                     <img alt="Avatar do Método do Pai" className="w-full h-full object-cover" src="/assets/avatar-pai.jpg" />
@@ -36,7 +34,7 @@ const SimpleTutorModal: React.FC<{ explanation: string; onClose: () => void }> =
     );
 };
 
-const TheoryModal: React.FC<{ htmlContent: string; title: string; onClose: () => void; onStartPractice: () => void }> = ({ htmlContent, title, onClose, onStartPractice }) => {
+export const TheoryModal: React.FC<{ htmlContent: string; title: string; onClose: () => void; onStartPractice: () => void }> = ({ htmlContent, title, onClose, onStartPractice }) => {
     const { play, stop, isPlaying, isSupported } = useTextToSpeech();
 
     const handlePlay = () => {
@@ -103,8 +101,8 @@ const LessonView: React.FC<{ lesson: TheoryLesson; onBack: () => void; setView: 
         const currentExercise = lesson.exercises[exerciseIndex];
         const isCorrect = optionIndex === currentExercise.correctOptionIndex;
 
-        if (!isCorrect && currentExercise.explanation) {
-            setShowExplanation(currentExercise.explanation);
+        if (!isCorrect) {
+            setShowExplanation(currentExercise.explanation || `Incorreto! A resposta certa era a alternativa ${String.fromCharCode(65 + currentExercise.correctOptionIndex)}. O Pai pede que você revise as anotações do material teórico acima para dominar esse detalhe!`);
         }
     };
 
@@ -219,6 +217,8 @@ interface StudyCenterProps {
     onSelectExam: (exam: Exam) => void;
     setView: (view: View) => void;
     userProfile: UserProfile | null;
+    filterSubject?: string | null;
+    onClearFilter?: () => void;
 }
 
 const ExamDropdown: React.FC<{ onSelectExam: (exam: Exam) => void }> = ({ onSelectExam }) => {
@@ -264,7 +264,7 @@ const ExamDropdown: React.FC<{ onSelectExam: (exam: Exam) => void }> = ({ onSele
                             <li key={exam.id}>
                                 <button onClick={() => handleSelect(exam)} className="w-full text-left p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex justify-between items-center">
                                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{exam.name}</span>
-                                    {exam.id === 'cp2-2017' && (
+                                    {exam.id === 'sd-pmerj-2023' && (
                                         <span className="text-[10px] font-bold bg-green-100 text-green-600 px-1.5 py-0.5 rounded uppercase">Novo</span>
                                     )}
                                 </button>
@@ -279,7 +279,7 @@ const ExamDropdown: React.FC<{ onSelectExam: (exam: Exam) => void }> = ({ onSele
 
 
 
-const StudyCenter: React.FC<StudyCenterProps> = ({ onSelectExam, setView, userProfile }) => {
+const StudyCenter: React.FC<StudyCenterProps> = ({ onSelectExam, setView, userProfile, filterSubject, onClearFilter }) => {
     const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
     const [lesson, setLesson] = useState<TheoryLesson | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -291,7 +291,9 @@ const StudyCenter: React.FC<StudyCenterProps> = ({ onSelectExam, setView, userPr
     const [preloadedExercises, setPreloadedExercises] = useState<any[]>([]);
 
     // Assinatura Premium Kiwify
-    const { isPremium, loading: subscriptionLoading } = useSubscription();
+    // A assinatura não é mais exigida para acessar Provas Anteriores
+    const isPremium = true;
+    const subscriptionLoading = false;
 
     const handleTopicSelect = async (topic: string, subject: keyof typeof syllabus) => {
         setSelectedTopic(topic);
@@ -392,44 +394,78 @@ const StudyCenter: React.FC<StudyCenterProps> = ({ onSelectExam, setView, userPr
             </header>
             <main className="p-5 space-y-8 max-w-4xl mx-auto w-full">
                 <section>
-                    <h2 className="text-xs font-black text-primary/50 dark:text-slate-400 uppercase tracking-widest mb-3">Aprender Teoria</h2>
+                    <h2 className="text-xs font-black text-primary/50 dark:text-slate-400 uppercase tracking-widest mb-3 flex items-center justify-between">
+                        <span>Aprender Teoria</span>
+                        {filterSubject && (
+                            <button onClick={onClearFilter} className="text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-full hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors flex items-center gap-1">
+                                Filtrando por: {filterSubject}
+                                <span className="material-icons-round text-[12px]">close</span>
+                            </button>
+                        )}
+                    </h2>
                     <div className="space-y-4">
-                        {Object.entries(syllabus).map(([subject, topics]) => (
-                            <div key={subject} className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-100 dark:border-slate-800">
-                                <h3 className="font-bold text-primary dark:text-blue-400 mb-3">{subject}</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                                    {topics.map(topic => (
-                                        <button
-                                            key={topic}
-                                            onClick={() => handleTopicSelect(topic, subject as keyof typeof syllabus)}
-                                            className="text-left p-3 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-primary/10 transition-colors"
-                                        >
-                                            <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{topic}</span>
-                                        </button>
-                                    ))}
+                        {Object.entries(syllabus)
+                            .filter(([subject]) => !filterSubject || subject === filterSubject)
+                            .map(([subject, topics]) => (
+                                <div key={subject} className="bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-100 dark:border-slate-800">
+                                    <h3 className="font-bold text-primary dark:text-blue-400 mb-3">{subject}</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                        {topics.map(topic => (
+                                            <button
+                                                key={topic}
+                                                onClick={() => handleTopicSelect(topic, subject as keyof typeof syllabus)}
+                                                className="text-left p-3 rounded-lg bg-slate-50 dark:bg-slate-800 hover:bg-primary/10 transition-colors"
+                                            >
+                                                <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{topic}</span>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
                     </div>
                 </section>
 
-                <section className="relative">
+                <section className="relative mt-8 z-20">
                     <h2 className="text-xs font-black text-primary/50 dark:text-slate-400 uppercase tracking-widest mb-3">Provas Anteriores</h2>
-                    {subscriptionLoading ? (
-                        <div className="flex justify-center p-8"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>
-                    ) : isPremium ? (
-                        <ExamDropdown onSelectExam={onSelectExam} />
-                    ) : (
-                        <div className="relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 p-4 min-h-[300px] flex items-center justify-center bg-slate-50 dark:bg-slate-900/50">
-                            {/* Blurred background mock to show what they are missing */}
-                            <div className="absolute inset-0 blur-md opacity-40 pointer-events-none p-4 space-y-3">
-                                <div className="h-14 bg-white dark:bg-slate-800 rounded-lg w-full"></div>
-                                <div className="h-14 bg-white dark:bg-slate-800 rounded-lg w-full"></div>
-                                <div className="h-14 bg-white dark:bg-slate-800 rounded-lg w-full"></div>
-                            </div>
-                            <PaywallOverlay userProfile={userProfile} featureName="Provas Anteriores na Íntegra" />
+                    <ExamDropdown onSelectExam={onSelectExam} />
+                </section>
+
+                {/* Banner Simulado Inédito Premium */}
+                <section className="mt-8">
+                    <div
+                        onClick={() => setView('WEEKLY_SIMULATION')}
+                        className="bg-gradient-to-tr from-emerald-600 to-teal-800 rounded-2xl p-6 text-white shadow-xl cursor-pointer hover:shadow-2xl hover:-translate-y-1 transition-all relative overflow-hidden group"
+                    >
+                        {/* Glow Effect */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-400/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 group-hover:bg-emerald-300/30 transition-colors"></div>
+
+                        <div className="absolute top-4 right-4 p-2 opacity-20 group-hover:scale-110 transition-transform group-hover:opacity-40">
+                            <span className="material-icons-round text-8xl">local_fire_department</span>
                         </div>
-                    )}
+
+                        <div className="flex items-center gap-2 mb-3 relative z-10">
+                            <span className="material-icons-round text-yellow-300 animate-pulse">local_fire_department</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-emerald-100 bg-emerald-900/40 px-3 py-1 rounded-full border border-emerald-500/30">
+                                Novidade Premium
+                            </span>
+                        </div>
+
+                        <h3 className="text-2xl font-black font-display relative z-10 mb-2 leading-tight">
+                            Simulado Inédito da Semana
+                        </h3>
+
+                        <p className="text-sm text-emerald-50 max-w-[80%] relative z-10 mb-6 font-grotesk opacity-90">
+                            Prepare-se para o inesperado. Todo fim de semana, um simulado 100% inédito no padrão da banca. Garanta sua vaga testando o que ninguém viu.
+                        </p>
+
+                        <div className="flex items-center justify-between relative z-10">
+                            <button className="bg-white text-emerald-800 hover:bg-emerald-50 text-sm font-black py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center gap-2">
+                                <span className="material-icons-round text-[18px]">workspace_premium</span>
+                                Desbloquear Simulado
+                            </button>
+                            <span className="text-emerald-200/50 text-xs font-bold font-grotesk uppercase tracking-widest">Apenas R$ 9,90</span>
+                        </div>
+                    </div>
                 </section>
 
             </main>

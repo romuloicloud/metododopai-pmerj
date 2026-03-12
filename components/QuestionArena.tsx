@@ -6,6 +6,8 @@ import { supabase } from '../services/supabaseClient';
 import ReinforcementArena from './ReinforcementArena';
 import { SmartToyIcon, CheckCircleIcon, CloseIcon } from './icons';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
+import { PaywallOverlay } from './PaywallOverlay';
+import type { UserProfile } from '../types';
 
 const AiTutorModal: React.FC<{ explanation: AiExplanation | null; onClose: () => void; onStartReinforcement: () => void; isLoading: boolean }> = ({ explanation, onClose, onStartReinforcement, isLoading }) => {
     if (!explanation && !isLoading) return null;
@@ -95,8 +97,11 @@ const SubjectSelector: React.FC<{ onSelect: (subject: ValidSubject) => void }> =
     </div>
 );
 
+interface QuestionArenaProps {
+    userProfile?: UserProfile | null;
+}
 
-const QuestionArena: React.FC = () => {
+const QuestionArena: React.FC<QuestionArenaProps> = ({ userProfile }) => {
     const [selectedSubject, setSelectedSubject] = useState<ValidSubject | null>(null);
     const [questions, setQuestions] = useState<Question[]>([]);
     const [questionIndex, setQuestionIndex] = useState(0);
@@ -369,6 +374,15 @@ const QuestionArena: React.FC = () => {
                         <button onClick={handleNextQuestion}
                             className="w-full py-4 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold shadow-lg transition-all active:scale-95">
                             ✅ Acertou! Próxima →
+                        </button>
+                    </div>
+                )}
+                {/* Botão Próxima (erro e free - botão alternativo sem IA) */}
+                {isCorrect === false && (
+                    <div className="mt-6">
+                        <button onClick={handleNextQuestion}
+                            className="w-full py-4 bg-slate-500 hover:bg-slate-600 text-white rounded-xl font-bold shadow-lg transition-all active:scale-95">
+                            ← Ir para a próxima questão
                         </button>
                     </div>
                 )}

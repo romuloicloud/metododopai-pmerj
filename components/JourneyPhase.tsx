@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { JourneyPhase as JPhase, Question, AiExplanation } from '../types';
 import { updatePhaseProgress } from '../services/journeyService';
-import { getAIExplanation } from '../services/geminiService';
+import { getAIExplanation, generateTheoryLesson } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
+import { TheoryModal } from './StudyCenter';
 
 interface Props {
     phase: JPhase;
@@ -25,6 +26,10 @@ const JourneyPhaseView: React.FC<Props> = ({ phase, onBack, onPhaseComplete }) =
     const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
     const [trainingComplete, setTrainingComplete] = useState(false);
     const [bossComplete, setBossComplete] = useState(false);
+
+    // Teoria
+    const [theoryHtml, setTheoryHtml] = useState<string | null>(null);
+    const [isTheoryModalOpen, setIsTheoryModalOpen] = useState(false);
 
     // Buscar questões para treino ou boss
     const loadQuestions = async (count: number) => {
@@ -149,6 +154,40 @@ const JourneyPhaseView: React.FC<Props> = ({ phase, onBack, onPhaseComplete }) =
         handleStartTraining();
     };
 
+    const handleReadTheory = async () => {
+        setIsLoadingQuestions(true);
+        try {
+            const { data: theoryData } = await supabase
+                .from('teoria')
+                .select('conteudo_html')
+                .eq('materia', phase.subject)
+                .eq('topico', phase.topic)
+                .maybeSingle();
+
+            if (theoryData) {
+                setTheoryHtml(theoryData.conteudo_html);
+                setIsTheoryModalOpen(true);
+                setIsLoadingQuestions(false);
+                return;
+            }
+        } catch (error) {
+            console.error("Error fetching content from Supabase:", error);
+        }
+
+        try {
+            const result = await generateTheoryLesson(phase.topic);
+            const htmlFormatted = result.explanation
+                .split('\n\n')
+                .map(p => `<p class="mb-4">${p}</p>`)
+                .join('');
+            setTheoryHtml(htmlFormatted);
+            setIsTheoryModalOpen(true);
+        } catch (error) {
+            console.error("Error generating theory:", error);
+        }
+        setIsLoadingQuestions(false);
+    };
+
     const optionLabels = ['A', 'B', 'C', 'D', 'E'];
     const currentQ = trainingQuestions[currentQIndex];
 
@@ -165,6 +204,17 @@ const JourneyPhaseView: React.FC<Props> = ({ phase, onBack, onPhaseComplete }) =
 
         return (
             <div className="min-h-screen bg-gradient-to-b from-slate-900 via-indigo-950 to-slate-900 px-6 py-8 pb-32">
+                {isTheoryModalOpen && theoryHtml && (
+                    <TheoryModal
+                        htmlContent={theoryHtml}
+                        title={phase.topic}
+                        onClose={() => setIsTheoryModalOpen(false)}
+                        onStartPractice={() => {
+                            setIsTheoryModalOpen(false);
+                            handleMarkTheoryDone();
+                        }}
+                    />
+                )}
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-6">
                     <button onClick={onBack} className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-slate-700 transition-colors">
@@ -201,10 +251,17 @@ const JourneyPhaseView: React.FC<Props> = ({ phase, onBack, onPhaseComplete }) =
                             </div>
                         </div>
                         {!phase.theoryDone && (
-                            <button onClick={handleMarkTheoryDone}
-                                className="w-full mt-3 py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-indigo-500 to-purple-600 shadow-lg active:scale-95 transition-transform">
-                                Já estudei! Vamos treinar →
-                            </button>
+                            <div className="flex flex-col gap-2 mt-4">
+                                <button onClick={handleReadTheory}
+                                    className="w-full py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-500 to-indigo-600 shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2">
+                                    <span className="material-icons-round text-lg">menu_book</span>
+                                    Ler Teoria
+                                </button>
+                                <button onClick={handleMarkTheoryDone}
+                                    className="w-full py-3 rounded-xl font-bold text-sm text-slate-300 border border-slate-700 hover:bg-slate-800 transition-colors">
+                                    Já estudei! Vamos treinar →
+                                </button>
+                            </div>
                         )}
                     </div>
 

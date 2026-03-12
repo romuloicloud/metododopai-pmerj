@@ -12,6 +12,7 @@ import DiagnosticArena from './components/DiagnosticArena';
 import DiagnosticResult from './components/DiagnosticResult';
 import JourneyMap from './components/JourneyMap';
 import JourneyPhaseView from './components/JourneyPhase';
+import WeeklySimulationArena from './components/WeeklySimulationArena';
 import { View, Exam, DiagnosticAnswer, DiagnosticResult as DiagResultType, JourneyPhase, UserProfile } from './types';
 import { supabase } from './services/supabaseClient';
 import { hasCompletedDiagnostic, analyzeDiagnosticResults, saveDiagnosticResult } from './services/diagnosticService';
@@ -25,6 +26,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('DASHBOARD');
   const [activeExam, setActiveExam] = useState<Exam | null>(null);
   const [activePhase, setActivePhase] = useState<JourneyPhase | null>(null);
+  const [activeSubject, setActiveSubject] = useState<string | null>(null);
   const [diagnosticResult, setDiagnosticResult] = useState<DiagResultType | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPaid, setIsPaid] = useState<boolean | null>(null);
@@ -177,31 +179,17 @@ const App: React.FC = () => {
   const renderView = () => {
     switch (currentView) {
       case 'DASHBOARD':
-        return <Dashboard setView={setCurrentView} />;
+        return <Dashboard setView={setCurrentView} onSelectSubject={(subject) => { setActiveSubject(subject); setCurrentView('STUDY_CENTER'); }} />;
       case 'PRACTICE':
-        if (subscriptionLoading) {
-          return <div className="flex justify-center items-center h-full"><div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
-        }
-        if (!isPremium) {
-          return (
-            <div className="relative h-full overflow-hidden bg-slate-50 dark:bg-slate-900/50">
-              {/* Blurred background mock */}
-              <div className="absolute inset-0 blur-md opacity-40 pointer-events-none p-6 space-y-4">
-                <div className="h-32 bg-white dark:bg-slate-800 rounded-xl w-full"></div>
-                <div className="h-16 bg-white dark:bg-slate-800 rounded-xl w-full"></div>
-                <div className="h-16 bg-white dark:bg-slate-800 rounded-xl w-full"></div>
-              </div>
-              <PaywallOverlay userProfile={userProfile} featureName="Treinador Infinito" />
-            </div>
-          );
-        }
-        return <QuestionArena />;
+        return <QuestionArena userProfile={userProfile} />;
+      case 'WEEKLY_SIMULATION':
+        return <WeeklySimulationArena userProfile={userProfile} onBack={() => setCurrentView('STUDY_CENTER')} />;
       case 'RANKING':
         return <Ranking />;
       case 'STUDY_CENTER':
-        return <StudyCenter onSelectExam={handleSelectExam} setView={setCurrentView} userProfile={userProfile} />;
+        return <StudyCenter onSelectExam={handleSelectExam} setView={setCurrentView} userProfile={userProfile} filterSubject={activeSubject} onClearFilter={() => setActiveSubject(null)} />;
       case 'PAST_EXAM_PRACTICE':
-        return activeExam ? <PastExamArena exam={activeExam} onFinishExam={handleFinishExam} /> : <StudyCenter onSelectExam={handleSelectExam} setView={setCurrentView} userProfile={userProfile} />;
+        return activeExam ? <PastExamArena exam={activeExam} onFinishExam={handleFinishExam} /> : <StudyCenter onSelectExam={handleSelectExam} setView={setCurrentView} userProfile={userProfile} filterSubject={activeSubject} onClearFilter={() => setActiveSubject(null)} />;
       case 'DIAGNOSTIC_WELCOME':
         return <DiagnosticWelcome onStart={handleStartDiagnostic} />;
       case 'DIAGNOSTIC_ARENA':
@@ -218,8 +206,25 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full bg-background-light dark:bg-background-dark font-display">
-      <div className="max-w-screen-xl mx-auto flex flex-col relative h-full">
+    <div className="w-full h-full bg-background-light dark:bg-background-dark font-display flex flex-col">
+      {/* Sticky Premium CTA (Global) */}
+      {!hideBottomNav && currentView !== 'WEEKLY_SIMULATION' && (
+        <div
+          onClick={() => setCurrentView('WEEKLY_SIMULATION')}
+          className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-emerald-700 transition-colors shadow-md z-40"
+        >
+          <div className="flex items-center gap-2">
+            <span className="material-icons-round text-yellow-300 animate-bounce text-sm">local_fire_department</span>
+            <span className="text-xs font-bold uppercase tracking-wider">Novo Simulado Disponível</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded shadow-sm font-bold">Acessar</span>
+            <span className="material-icons-round text-[14px]">chevron_right</span>
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-screen-xl mx-auto flex flex-col relative flex-1 w-full h-full overflow-hidden">
         <main className="flex-1 overflow-y-auto">
           {renderView()}
         </main>

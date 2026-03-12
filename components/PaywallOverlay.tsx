@@ -41,15 +41,15 @@ export function PaywallOverlay({ userProfile, featureName }: PaywallOverlayProps
                     <div className="space-y-3 mb-8 text-left max-w-sm mx-auto">
                         <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
                             <CheckCircle2 className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
-                            Simulados Antigos e Inéditos Ilimitados
+                            Simulados Inéditos Semanais
                         </div>
                         <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
                             <CheckCircle2 className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
-                            Treinador Virtual de Matérias
+                            Tutor de Inteligência Artificial Particular
                         </div>
                         <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
                             <CheckCircle2 className="w-5 h-5 text-green-500 mr-3 flex-shrink-0" />
-                            Métricas Detalhadas de Aprovação
+                            Estatísticas Avançadas de Posicionamento
                         </div>
                     </div>
 

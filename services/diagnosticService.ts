@@ -107,7 +107,7 @@ export const fetchDiagnosticQuestions = async (): Promise<Question[]> => {
 };
 
 /**
- * Analisa as respostas e identifica tópicos fortes/fracos.
+ * Analisa as respostas e identifica tópicos fortes/fracos, aplicando pesos do Edital da PMERJ.
  */
 export const analyzeDiagnosticResults = (answers: DiagnosticAnswer[]): DiagnosticResult => {
     const scoreTotal = answers.filter(a => a.isCorrect).length;
@@ -115,6 +115,32 @@ export const analyzeDiagnosticResults = (answers: DiagnosticAnswer[]): Diagnosti
     const scoreMatematica = answers.filter(a => a.subject.includes('Matem') && a.isCorrect).length;
     const scoreDireitosHumanos = answers.filter(a => a.subject.includes('Humanos') && a.isCorrect).length;
     const scoreLegislacao = answers.filter(a => a.subject.includes('Legisla') && a.isCorrect).length;
+
+    // Calcular o % de maestria baseado nos pesos REAIS do edital
+    // Exemplo de pesos genéricos PMERJ (pode ser ajustado):
+    // Português: Peso 3 (30%)
+    // Legislação: Peso 3 (30%) 
+    // Direitos Humanos: Peso 2 (20%)
+    // Matemática: Peso 2 (20%)
+
+    // Total de questões no diagnóstico (são 10) divididos pela amostra de matéria
+    const totalPt = answers.filter(a => a.subject.includes('Portugu')).length || 1;
+    const totalMat = answers.filter(a => a.subject.includes('Matem')).length || 1;
+    const totalDh = answers.filter(a => a.subject.includes('Humanos')).length || 1;
+    const totalLeg = answers.filter(a => a.subject.includes('Legisla')).length || 1;
+
+    const ptPercent = (scorePortugues / totalPt);
+    const matPercent = (scoreMatematica / totalMat);
+    const dhPercent = (scoreDireitosHumanos / totalDh);
+    const legPercent = (scoreLegislacao / totalLeg);
+
+    // Global Mastery (Pontuação ponderada)
+    const pmerjGlobalMastery = Math.round(
+        (ptPercent * 30) +
+        (legPercent * 30) +
+        (dhPercent * 20) +
+        (matPercent * 20)
+    );
 
     // Agrupar por tópico e calcular acerto
     const topicMap: Record<string, { correct: number; total: number }> = {};
@@ -142,6 +168,7 @@ export const analyzeDiagnosticResults = (answers: DiagnosticAnswer[]): Diagnosti
         weakTopics,
         strongTopics,
         answers,
+        pmerjGlobalMastery,
     };
 };
 
@@ -161,6 +188,7 @@ export const saveDiagnosticResult = async (userId: string, result: DiagnosticRes
             weak_topics: result.weakTopics,
             strong_topics: result.strongTopics,
             answers: result.answers,
+            pmerj_global_mastery: result.pmerjGlobalMastery || 0,
         });
 
     if (error) {
@@ -191,5 +219,6 @@ export const getDiagnosticResult = async (userId: string): Promise<DiagnosticRes
         weakTopics: data.weak_topics,
         strongTopics: data.strong_topics,
         answers: data.answers as DiagnosticAnswer[],
+        pmerjGlobalMastery: data.pmerj_global_mastery || 0,
     };
 };

@@ -35,12 +35,6 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
         onClick={() => setView('DASHBOARD')}
       />
       <NavItem
-        label="Estudar"
-        icon={<StudyIcon />}
-        isActive={currentView === 'STUDY_CENTER'}
-        onClick={() => setView('STUDY_CENTER')}
-      />
-      <NavItem
         label="Jornada"
         icon={<span className="text-xl">🗺️</span>}
         isActive={currentView === 'JOURNEY_MAP' || currentView === 'JOURNEY_PHASE'}
@@ -49,8 +43,14 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
       <NavItem
         label="Praticar"
         icon={<PracticeIcon />}
-        isActive={currentView === 'PRACTICE'}
-        onClick={() => setView('PRACTICE')}
+        isActive={currentView === 'STUDY_CENTER' || currentView === 'PRACTICE' || currentView === 'WEEKLY_SIMULATION'}
+        onClick={() => setView('STUDY_CENTER')}
+      />
+      <NavItem
+        label="Simulados"
+        icon={<span className="text-xl animate-bounce">🔥</span>}
+        isActive={currentView === 'WEEKLY_SIMULATION'}
+        onClick={() => setView('WEEKLY_SIMULATION')}
       />
       <NavItem
         label="Ranking"

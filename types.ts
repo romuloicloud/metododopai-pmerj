@@ -50,6 +50,7 @@ export interface Achievement {
 }
 
 export interface RankEntry {
+  userId?: string;
   rank: number;
   name: string;
   avatarUrl: string;
@@ -118,6 +119,9 @@ export interface DiagnosticResult {
   weakTopics: string[];
   strongTopics: string[];
   answers: DiagnosticAnswer[];
+  // Novos campos baseados na regra do edital PMERJ
+  pmerjGlobalMastery?: number; // % 0-100 baseado no peso
+  weightedScore?: number;
 }
 
 // --- Jornada Gamificada ---
@@ -125,7 +129,7 @@ export interface JourneyPhase {
   phaseNumber: number;
   topic: string;
   subject: string;
-  status: 'locked' | 'current' | 'completed';
+  status: 'available' | 'current' | 'completed';
   stars: number; // 0-3
   theoryDone: boolean;
   trainingDone: boolean;
@@ -148,4 +152,4 @@ export interface DailyChallenge {
   claimed: boolean;
 }
 
-export type View = 'DASHBOARD' | 'PRACTICE' | 'RANKING' | 'STUDY_CENTER' | 'PAST_EXAM_PRACTICE' | 'DIAGNOSTIC_WELCOME' | 'DIAGNOSTIC_ARENA' | 'DIAGNOSTIC_RESULT' | 'JOURNEY_MAP' | 'JOURNEY_PHASE';
+export type View = 'DASHBOARD' | 'PRACTICE' | 'RANKING' | 'STUDY_CENTER' | 'PAST_EXAM_PRACTICE' | 'DIAGNOSTIC_WELCOME' | 'DIAGNOSTIC_ARENA' | 'DIAGNOSTIC_RESULT' | 'JOURNEY_MAP' | 'JOURNEY_PHASE' | 'WEEKLY_SIMULATION';

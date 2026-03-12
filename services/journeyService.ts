@@ -66,7 +66,7 @@ export const initializeJourney = async (userId: string, weakTopics: string[]): P
         phase_number: index + 1,
         topic: phase.topic,
         subject: phase.subject,
-        status: index === 0 ? 'current' : 'locked',
+        status: index === 0 ? 'current' : 'available', // Todas as outras disponíveis
         stars: 0,
         theory_done: false,
         training_done: false,
@@ -102,7 +102,8 @@ export const getJourneyPhases = async (userId: string): Promise<JourneyPhase[]> 
         phaseNumber: d.phase_number,
         topic: d.topic,
         subject: d.subject,
-        status: d.status as 'locked' | 'current' | 'completed',
+        // Mapear 'locked' do banco antigo para 'available'
+        status: (d.status === 'locked' ? 'available' : d.status) as any,
         stars: d.stars,
         theoryDone: d.theory_done,
         trainingDone: d.training_done,
@@ -133,7 +134,7 @@ export const updatePhaseProgress = async (
     if (updates.stars !== undefined) dbUpdates.stars = updates.stars;
     dbUpdates.updated_at = new Date().toISOString();
 
-    // Se o boss foi completado, marcar fase como completed e desbloquear a próxima
+    // Se o boss foi completado, marcar fase como completed
     if (updates.bossDone) {
         dbUpdates.status = 'completed';
 
@@ -145,13 +146,13 @@ export const updatePhaseProgress = async (
 
         if (error) console.error('Erro ao atualizar fase:', error);
 
-        // Desbloquear próxima fase
+        // Atualizar também a próxima fase (opcional, já que agora tudo é livre)
         await supabase
             .from('journey_progress')
             .update({ status: 'current', updated_at: new Date().toISOString() })
             .eq('user_id', userId)
             .eq('phase_number', phaseNumber + 1)
-            .eq('status', 'locked');
+            .eq('status', 'available'); // ou locked se ainda estiver antigo
     } else {
         const { error } = await supabase
             .from('journey_progress')

@@ -4,12 +4,11 @@ import { mockQuestions, mockLesson, mockLessonPortugues } from './mockData';
 import { supabase } from './supabaseClient';
 import { syllabus } from './syllabusData';
 
-// A chave de API é injetada pelo Vite via define no vite.config.ts
+// A chave de API é injetada pelo Vite via VITE_GEMINI_API_KEY
 // Usamos uma inicialização segura que não crasha o app se a chave estiver ausente
 let ai: any;
 try {
-    const apiKey = import.meta.env?.VITE_GEMINI_API_KEY || (import.meta as any).env?.GEMINI_API_KEY || process.env.GEMINI_API_KEY || process.env.API_KEY || '';
-    console.log("Debugging Gemini Key - Is key present?", !!apiKey);
+    const apiKey = import.meta.env?.VITE_GEMINI_API_KEY || '';
     if (apiKey) {
         ai = new GoogleGenAI({ apiKey });
         console.log("GoogleGenAI initialized successfully!");
@@ -91,7 +90,7 @@ export const getAIExplanation = async (question: Question, incorrectAnswer: stri
 
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.0-flash',
+            model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -165,7 +164,7 @@ export const generateQuestionFromEdital = async (subject: 'LÍNGUA PORTUGUESA' |
 
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.0-flash',
+            model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -236,7 +235,7 @@ export const generateTheoryLesson = async (topic: string): Promise<TheoryLesson>
 
         const response = await Promise.race([
             ai.models.generateContent({
-                model: 'gemini-2.0-flash',
+                model: 'gemini-2.5-flash',
                 contents: prompt,
                 config: {
                     systemInstruction: systemInstruction,
@@ -330,7 +329,7 @@ export const validateExamAnswer = async (question: Question, incorrectAnswer: st
 
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.0-flash',
+            model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -394,7 +393,7 @@ export const generateReinforcementQuestions = async (subject: string, topic: str
 
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.0-flash',
+            model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
