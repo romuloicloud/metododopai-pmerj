@@ -26,8 +26,8 @@ export const useTextToSpeech = () => {
 
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'pt-BR';
-        utterance.rate = 1.15; // Mais ágil
-        utterance.pitch = 0.9; // Mais imponente
+        utterance.rate = 1.0; // Leitura normal (foi solicitada mais lenta)
+        utterance.pitch = 0.95; // Levemente mais grave
 
         // Tentar encontrar uma voz masculina agradável (ex: Google)
         const voices = window.speechSynthesis.getVoices();

@@ -8,7 +8,7 @@ import { syllabus } from './syllabusData';
 // Usamos uma inicialização segura que não crasha o app se a chave estiver ausente
 let ai: any;
 try {
-    const apiKey = import.meta.env?.VITE_GEMINI_API_KEY || '';
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyB8B50gF5834SiDx7Cqj1Z-evCS1LweCC0';
     if (apiKey) {
         ai = new GoogleGenAI({ apiKey });
         console.log("GoogleGenAI initialized successfully!");
