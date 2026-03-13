@@ -198,39 +198,50 @@ export const generateQuestionFromEdital = async (subject: 'LÍNGUA PORTUGUESA' |
     }
 };
 
-export const generateTheoryLesson = async (topic: string): Promise<TheoryLesson> => {
-    // Estratégia de Cache com Supabase
-    const { data: cachedData, error: cacheError } = await supabase
-        .from('lessons_cache')
-        .select('lesson_data')
-        .eq('topic', topic)
-        .single();
+export const generateTheoryLesson = async (topic: string, isDeepDive: boolean = false): Promise<TheoryLesson> => {
+    // Se NÃO FOR aprofundamento, tentamos cache. Se FOR aprofundamento, sempre bate na IA p/ ineditismo.
+    if (!isDeepDive) {
+        // Estratégia de Cache com Supabase
+        const { data: cachedData, error: cacheError } = await supabase
+            .from('lessons_cache')
+            .select('lesson_data')
+            .eq('topic', topic)
+            .single();
 
-    if (cacheError && cacheError.code !== 'PGRST116') { // PGRST116: "No rows found"
-        console.error('Error fetching from Supabase cache:', cacheError.message);
+        if (cacheError && cacheError.code !== 'PGRST116') { // PGRST116: "No rows found"
+            console.error('Error fetching from Supabase cache:', cacheError.message);
+        }
+
+        if (cachedData) {
+            console.log(`Supabase Cache HIT for topic: ${topic}`);
+            return cachedData.lesson_data as TheoryLesson;
+        }
+
+        console.log(`Supabase Cache MISS for topic: ${topic}. Fetching from API.`);
+    } else {
+        console.log(`Deep Dive requested for topic: ${topic}. Going straight to AI.`);
     }
-
-    if (cachedData) {
-        console.log(`Supabase Cache HIT for topic: ${topic}`);
-        return cachedData.lesson_data as TheoryLesson;
-    }
-
-    console.log(`Supabase Cache MISS for topic: ${topic}. Fetching from API.`);
 
     const systemInstruction = 'Act as: Police Exam Tutor. Level: Adult (Concurso PMERJ). Output: STRICT JSON. No filler text, just the raw JSON object.';
-    const prompt = `Generate a micro-lesson for the topic: "${topic}". 
-    The content must have:
-    1. A theory explanation of max 300 words, clear and objective for an adult studying for PMERJ.
-    2. Exactly 8 multiple-choice questions (MCQs) with progressive difficulty:
-       - Questions 1-3: Fácil (basic concepts)
-       - Questions 4-6: Médio (application)  
-       - Questions 7-8: Desafio (exam-level, tricky)
-    Each question must have 4 options and a detailed explanation of why the correct answer is correct.
-    Focus: PMERJ/FGV exam level for Soldiers (adults).`;
+    let prompt = "";
+
+    if (isDeepDive) {
+        prompt = `Generate a DEEP DIVE micro-lesson for the topic: "${topic}". 
+        The student already read the basics and wants a deeper understanding.
+        1. A theory explanation of max 300 words, focusing on exceptions, edge cases, and FGV "pegadinhas" (tricks) for an adult studying for PMERJ.
+        2. Exactly 3 multiple-choice questions (MCQs) of 'Desafio' difficulty (exam-level, tricky).
+        Each question must have 4 options and a detailed explanation of why the correct answer is correct.`;
+    } else {
+        prompt = `Generate a micro-lesson for the topic: "${topic}". 
+        The content must have:
+        1. A theory explanation of max 300 words, clear and objective for an adult studying for PMERJ.
+        2. Exactly 4 multiple-choice questions (MCQs) with progressive difficulty.
+        Each question must have 4 options and a detailed explanation of why the correct answer is correct.`;
+    }
 
     try {
         const timeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('API Timeout')), 25000) // 25s for 8 questions
+            setTimeout(() => reject(new Error('API Timeout')), 35000) // 35s max
         );
 
         const response = await Promise.race([
@@ -261,7 +272,7 @@ export const generateTheoryLesson = async (topic: string): Promise<TheoryLesson>
                         },
                         required: ['topic', 'explanation', 'exercises']
                     },
-                    temperature: 0.2
+                    temperature: isDeepDive ? 0.6 : 0.2 // More creativity for deep dives
                 }
             }),
             timeoutPromise
@@ -273,13 +284,15 @@ export const generateTheoryLesson = async (topic: string): Promise<TheoryLesson>
 
         const lessonData = JSON.parse(response.text) as TheoryLesson;
 
-        // Salva no cache do Supabase para a próxima vez
-        const { error: upsertError } = await supabase
-            .from('lessons_cache')
-            .upsert({ topic: topic, lesson_data: lessonData });
+        // Só salva no cache se não for aprofundamento (aprofundamento é gerado on-fly com variação de temperatura)
+        if (!isDeepDive) {
+            const { error: upsertError } = await supabase
+                .from('lessons_cache')
+                .upsert({ topic: topic, lesson_data: lessonData });
 
-        if (upsertError) {
-            console.error('Error saving lesson to Supabase cache:', upsertError.message);
+            if (upsertError) {
+                console.error('Error saving lesson to Supabase cache:', upsertError.message);
+            }
         }
 
         return lessonData;
@@ -392,28 +405,35 @@ export const generateReinforcementQuestions = async (subject: string, topic: str
     `;
 
     try {
-        const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            subject: { type: Type.STRING },
-                            topic: { type: Type.STRING },
-                            baseText: { type: Type.STRING },
-                            text: { type: Type.STRING },
-                            options: { type: Type.ARRAY, items: { type: Type.STRING } },
-                            correctOptionIndex: { type: Type.INTEGER },
-                        },
-                        required: ['subject', 'topic', 'text', 'options', 'correctOptionIndex']
+        const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('API Timeout')), 30000)
+        );
+
+        const response = await Promise.race([
+            ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseSchema: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                subject: { type: Type.STRING },
+                                topic: { type: Type.STRING },
+                                baseText: { type: Type.STRING },
+                                text: { type: Type.STRING },
+                                options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                correctOptionIndex: { type: Type.INTEGER },
+                            },
+                            required: ['subject', 'topic', 'text', 'options', 'correctOptionIndex']
+                        }
                     }
                 }
-            }
-        });
+            }),
+            timeoutPromise
+        ]) as GenerateContentResponse;
 
         if (response.text) {
             const generatedQuestions = JSON.parse(response.text) as Omit<Question, 'id'>[];
@@ -422,10 +442,29 @@ export const generateReinforcementQuestions = async (subject: string, topic: str
                 id: `gen-reinforce-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
             }));
         }
-        return null;
+        throw new Error("Empty response from AI");
 
     } catch (error) {
-        console.error("Error generating reinforcement questions:", error);
-        return null;
+        console.error("Error generating reinforcement questions, using fallback:", error);
+        // Fallback: retornar questoes mock de acordo  com a disciplina para nao travar a tela
+        if (subject.toLowerCase().includes('portugu')) {
+            return mockLessonPortugues.exercises.map((e, index) => ({
+                id: `mock-pt-${index}`,
+                subject: 'Língua Portuguesa',
+                topic: topic,
+                text: e.question,
+                options: e.options,
+                correctOptionIndex: e.correctOptionIndex
+            }));
+        } else {
+            return mockLesson.exercises.map((e, index) => ({
+                id: `mock-mat-${index}`,
+                subject: 'Matemática Básica',
+                topic: topic,
+                text: e.question,
+                options: e.options,
+                correctOptionIndex: e.correctOptionIndex
+            }));
+        }
     }
 };

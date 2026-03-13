@@ -34,7 +34,12 @@ const SimpleTutorModal: React.FC<{ explanation: string; onClose: () => void }> =
     );
 };
 
-export const TheoryModal: React.FC<{ htmlContent: string; title: string; onClose: () => void; onStartPractice: () => void }> = ({ htmlContent, title, onClose, onStartPractice }) => {
+export const TheoryModal: React.FC<{
+    title: string;
+    htmlContent: string;
+    onClose: () => void;
+    onStartPractice: (isDeepDive?: boolean) => void;
+}> = ({ title, htmlContent, onClose, onStartPractice }) => {
     const { play, stop, isPlaying, isSupported } = useTextToSpeech();
 
     const handlePlay = () => {
@@ -74,11 +79,17 @@ export const TheoryModal: React.FC<{ htmlContent: string; title: string; onClose
                 <div className="flex-1 overflow-y-auto p-6">
                     <div className="prose dark:prose-invert max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: htmlContent }} />
                 </div>
-                <footer className="p-5 border-t border-slate-100 dark:border-slate-800 flex gap-3">
-                    <button onClick={onClose} className="flex-1 py-3 px-4 rounded-xl font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <footer className="p-5 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-3">
+                    <button onClick={onClose} className="py-3 px-4 rounded-xl font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                         Fechar
                     </button>
-                    <button onClick={onStartPractice} className="flex-[2] py-3 px-4 rounded-xl font-bold text-white bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 transition-colors flex items-center justify-center gap-2">
+                    {/* Botão de aprofundamento sugerido pelo usuário */}
+                    <button onClick={() => { onClose(); onStartPractice(true); }} className="py-3 px-4 rounded-xl font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 shadow-sm border border-indigo-200 dark:border-indigo-800 transition-colors flex items-center justify-center gap-2">
+                        <span className="material-icons-round text-lg">psychology</span>
+                        <span className="hidden sm:inline">Aprofundar c/ IA</span>
+                        <span className="sm:hidden">Aprofundar</span>
+                    </button>
+                    <button onClick={() => onStartPractice(false)} className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 transition-colors flex items-center justify-center gap-2">
                         <span className="material-icons-round">fitness_center</span>
                         Ir para o Treino
                     </button>
@@ -340,21 +351,31 @@ const StudyCenter: React.FC<StudyCenterProps> = ({ onSelectExam, setView, userPr
         }
 
         // 2. Fallback: Generate via Gemini AI (Old Logic)
-        const result = await generateTheoryLesson(topic);
-
+        const result = await generateTheoryLesson(topic, false);
 
         setLesson(result);
         setIsLoading(false);
         setLoadingSubject(null);
     };
 
-    const startPracticeFromModal = () => {
+    const startPracticeFromModal = async (isDeepDive: boolean = false) => {
         setIsTheoryModalOpen(false);
-        setLesson({
-            topic: selectedTopic || 'Treinamento',
-            explanation: '', // Not used anymore in LessonView as we have the modal
-            exercises: preloadedExercises
-        });
+
+        if (isDeepDive) {
+            setIsLoading(true);
+            setLoadingSubject(filterSubject as keyof typeof syllabus || 'Língua Portuguesa');
+            // Busca um aprofundamento mais complexo na IA
+            const result = await generateTheoryLesson(selectedTopic || 'Aprofundamento', true);
+            setLesson(result);
+            setIsLoading(false);
+            setLoadingSubject(null);
+        } else {
+            setLesson({
+                topic: selectedTopic || 'Treinamento',
+                explanation: '', // Not used anymore in LessonView as we have the modal
+                exercises: preloadedExercises
+            });
+        }
     };
 
     if (isLoading) {
