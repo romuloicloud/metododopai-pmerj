@@ -25,19 +25,7 @@ const Login: React.FC = () => {
                 });
                 if (error) throw error;
             } else {
-                // Handle Sign Up
-                const { error } = await supabase.auth.signUp({
-                    email,
-                    password,
-                    options: {
-                        data: {
-                            full_name: name,
-                        },
-                    },
-                });
-                if (error) throw error;
-                setMessage('Conta criada com sucesso! Verifique seu e-mail para confirmação.');
-                setIsLoginMode(true);
+                throw new Error("Criação de contas desabilitada. Efetue a compra pelo site oficial.");
             }
         } catch (error: any) {
             console.error('Auth error:', error);
@@ -102,8 +90,8 @@ const Login: React.FC = () => {
                         </button>
                     </form>
 
-                    <button onClick={() => setIsLoginMode(!isLoginMode)} className="text-center text-sm mt-6 text-slate-400 hover:text-white transition-colors">
-                        {isLoginMode ? "Não tem uma conta? Cadastre-se" : "Já tem uma conta? Faça login"}
+                    <button type="button" onClick={() => window.location.href = "https://metododopai.com/pmerj"} className="text-center w-full text-sm mt-6 text-slate-400 hover:text-white transition-colors">
+                        Precisa de um acesso? Adquira a sua vaga.
                     </button>
 
                     {message && <p className="text-center text-sm mt-4 text-green-400">{message}</p>}
