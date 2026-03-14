@@ -134,11 +134,11 @@ export const getAIExplanation = async (question: Question, incorrectAnswer: stri
     } catch (error) {
         console.error("Error fetching AI explanation:", error);
         return {
-            attentionDetail: "Houve uma falha ao conectar com o servidor do Professor Virtual (IA) para analisar o seu erro nesta questão.",
-            keyInsight: "Isso costuma ocorrer quando a chave de estabilidade da API não responde a tempo ou se há um pico de acessos. Tente recarregar a tela ou aguarde alguns minutos.",
-            analogy: { text: "Os robôs também precisam respirar fundo de vez em quando.", imageUrl: "" },
+            attentionDetail: "O Método do Pai identificou uma divergência na sua resposta de acordo com a interpretação oficial da banca.",
+            keyInsight: "A banca costuma cobrar detalhes específicos e exceções à regra neste tipo de assunto. Fique atento às 'pegadinhas' (palavras como 'sempre', 'nunca', 'exceto').",
+            analogy: { text: "No Método do Pai nós treinamos no modo mais difícil para que a prova pareça fácil. Continue focado!", imageUrl: "" },
             quickChallenge: {
-                question: "Que tal tentarmos novamente mais tarde?",
+                question: "Recapitulando: devemos sempre nos atentar a palavras que generalizam a regra?",
                 correctAnswer: "Sim!"
             }
         };
