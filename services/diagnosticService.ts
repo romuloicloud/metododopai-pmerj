@@ -101,9 +101,14 @@ export const fetchDiagnosticQuestions = async (): Promise<Question[]> => {
         correctOptionIndex: q.correct_option_index,
     });
 
+    const { shuffleOptionsWithCorrectIndex } = require('../src/utils/helpers');
+
     // Combinar e embaralhar a ordem final
     const all = shuffled([...selectedPT, ...selectedMAT, ...selectedDH, ...selectedLEG]);
-    return all.map(mapToQuestion);
+    return all.map(mapToQuestion).map(q => {
+        const { shuffledOptions, newCorrectIndex } = shuffleOptionsWithCorrectIndex(q.options, q.correctOptionIndex);
+        return { ...q, options: shuffledOptions, correctOptionIndex: newCorrectIndex };
+    });
 };
 
 /**

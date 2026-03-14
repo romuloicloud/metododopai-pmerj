@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, UserProfile } from '../types';
 import { supabase } from '../services/supabaseClient';
+import { useSubscription } from '../hooks/useSubscription';
 
 interface Props {
     userProfile: UserProfile | null;
@@ -9,6 +10,7 @@ interface Props {
 
 const WeeklySimulationArena: React.FC<Props> = ({ userProfile, onBack }) => {
     const [isLoadingPayment, setIsLoadingPayment] = useState(false);
+    const { isPremium, loading } = useSubscription();
 
     const handleKiwifyCheckout = () => {
         setIsLoadingPayment(true);
@@ -25,6 +27,39 @@ const WeeklySimulationArena: React.FC<Props> = ({ userProfile, onBack }) => {
             setIsLoadingPayment(false);
         }, 800);
     };
+
+    if (loading) {
+        return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">Carregando...</div>;
+    }
+
+    if (isPremium) {
+        return (
+            <div className="min-h-screen bg-slate-900 px-6 py-8 flex flex-col justify-center items-center">
+                <div className="w-24 h-24 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(16,185,129,0.3)] mb-8">
+                    <span className="material-icons-round text-5xl text-white">verified</span>
+                </div>
+                <h1 className="text-3xl font-black text-white text-center mb-4 font-display leading-tight">
+                    Acesso <span className="text-emerald-400">Liberado!</span>
+                </h1>
+                <p className="text-slate-300 text-center max-w-sm mb-8 font-grotesk text-lg leading-relaxed">
+                    Parabéns, você ativou o Simulador Inédito Premium. As questões exclusivas deste ciclo estão sendo preparadas pelo nosso Mestre IA.
+                </p>
+                <div className="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 mb-8 w-full max-w-sm space-y-4">
+                    <div className="flex items-center gap-3">
+                        <span className="material-icons-round text-indigo-400">calendar_month</span>
+                        <p className="text-sm text-slate-200">Novos simulados abrem sexta-feira às 18h.</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <span className="material-icons-round text-amber-400">notifications_active</span>
+                        <p className="text-sm text-slate-200">Você será notificado por email no lançamento.</p>
+                    </div>
+                </div>
+                <button onClick={onBack} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 px-8 rounded-xl transition-colors shadow-lg active:scale-95 w-full max-w-sm">
+                    Voltar ao Resumo
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-900 px-6 py-8 pb-32 flex flex-col pt-12">

@@ -26,18 +26,28 @@ export const useTextToSpeech = () => {
 
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'pt-BR';
-        utterance.rate = 1.0; // Leitura normal (foi solicitada mais lenta)
-        utterance.pitch = 0.95; // Levemente mais grave
+        utterance.rate = 1.15; // Leitura ágil, não monótona
+        utterance.pitch = 0.85; // Mais grave para simular voz masculina ("Pai")
 
-        // Tentar encontrar uma voz masculina agradável (ex: Google)
+        // Tentar encontrar uma voz masculina agradável
         const voices = window.speechSynthesis.getVoices();
         const ptBrVoices = voices.filter(v => v.lang === 'pt-BR' || v.lang === 'pt_BR');
         if (ptBrVoices.length > 0) {
-            // Prioriza voz do Google se existir
+            const maleVoice = ptBrVoices.find(v =>
+                v.name.includes('Antonio') ||
+                v.name.includes('Tiago') ||
+                v.name.includes('Daniel') ||
+                v.name.toLowerCase().includes('masculin') ||
+                v.name.toLowerCase().includes('male')
+            );
             const googleVoice = ptBrVoices.find(v => v.name.includes('Google'));
-            if (googleVoice) {
+
+            if (maleVoice) {
+                utterance.voice = maleVoice;
+            } else if (googleVoice) {
                 utterance.voice = googleVoice;
             } else {
+                // Se não achar, pega a primeira disponível do Brasil
                 utterance.voice = ptBrVoices[0];
             }
         }

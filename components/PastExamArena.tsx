@@ -7,8 +7,19 @@ import { generateReinforcementQuestions } from '../services/geminiService';
 import ReinforcementArena from './ReinforcementArena';
 import { SmartToyIcon, CheckCircleIcon, CloseIcon } from './icons';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
+import { shuffleOptionsWithCorrectIndex } from '../src/utils/helpers';
 
-const AiTutorModal: React.FC<{ explanation: AiExplanation | null; onClose: () => void; onStartReinforcement: () => void; isLoading: boolean }> = ({ explanation, onClose, onStartReinforcement, isLoading }) => {
+const AiTutorModal: React.FC<{ explanation: AiExplanation | null; onClose: () => void; isLoading: boolean }> = ({ explanation, onClose, isLoading }) => {
+    const { play, stop, isPlaying, isSupported } = useTextToSpeech();
+
+    useEffect(() => {
+        if (explanation && explanation.attentionDetail && isSupported) {
+            const textToRead = `Ponto de Atenção: ${explanation.attentionDetail}. Visão Estratégica: ${explanation.keyInsight}`;
+            play(textToRead);
+        }
+        return () => stop();
+    }, [explanation, isSupported, play, stop]);
+
     return (
         <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-20 flex flex-col justify-end">
             <div className="flex flex-col items-center mb-[-24px] z-30">
@@ -40,12 +51,8 @@ const AiTutorModal: React.FC<{ explanation: AiExplanation | null; onClose: () =>
                                 <p className="text-xs text-slate-600 dark:text-slate-400 italic">"{explanation.keyInsight}"</p>
                             </div>
                         </div>
-                        <button onClick={onClose} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold uppercase tracking-wider shadow-lg shrink-0 transition-colors">
+                        <button onClick={() => { stop(); onClose(); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold uppercase tracking-wider shadow-lg shrink-0 transition-colors">
                             <span>Entendi, continuar prova!</span>
-                        </button>
-                        <button onClick={onStartReinforcement} className="mt-3 w-full border-2 border-indigo-500 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 py-4 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors">
-                            <span className="material-icons-round">fitness_center</span>
-                            Treino de Reforço
                         </button>
                     </>
                 )}
@@ -76,10 +83,6 @@ const PastExamArena: React.FC<PastExamArenaProps> = ({ exam, onFinishExam }) => 
     // Armazena respostas de cada questão para permitir navegação
     const [answers, setAnswers] = useState<Record<number, { selected: number; correct: boolean }>>({});
 
-    // Treino de Reforço States
-    const [isGeneratingReinforcement, setIsGeneratingReinforcement] = useState(false);
-    const [reinforcementQuestions, setReinforcementQuestions] = useState<Question[] | null>(null);
-
     const { play, stop, isPlaying, isSupported } = useTextToSpeech();
 
     useEffect(() => {
@@ -99,17 +102,20 @@ const PastExamArena: React.FC<PastExamArenaProps> = ({ exam, onFinishExam }) => 
                 }
 
                 if (data && data.length > 0) {
-                    const mappedQuestions: Question[] = data.map((q: any) => ({
-                        id: q.id,
-                        subject: q.subject,
-                        topic: q.topic,
-                        text: q.text,
-                        baseText: q.base_text,
-                        imageUrl: q.image_url,
-                        imageUrl2: q.image_url_2 || undefined,
-                        options: q.options,
-                        correctOptionIndex: q.correct_option_index,
-                    }));
+                    const mappedQuestions: Question[] = data.map((q: any) => {
+                        const { shuffledOptions, newCorrectIndex } = shuffleOptionsWithCorrectIndex(q.options, q.correct_option_index);
+                        return {
+                            id: q.id,
+                            subject: q.subject,
+                            topic: q.topic,
+                            text: q.text,
+                            baseText: q.base_text,
+                            imageUrl: q.image_url,
+                            imageUrl2: q.image_url_2 || undefined,
+                            options: shuffledOptions,
+                            correctOptionIndex: newCorrectIndex,
+                        };
+                    });
 
                     // Herança de texto-base: quando uma questão referencia um texto (ex: "Texto III")
                     // busca na questão anterior o texto mais completo com a mesma referência
@@ -233,17 +239,6 @@ const PastExamArena: React.FC<PastExamArenaProps> = ({ exam, onFinishExam }) => 
         }
     };
 
-    const handleStartReinforcement = async () => {
-        setIsGeneratingReinforcement(true);
-        const questions = await generateReinforcementQuestions(currentQuestion.subject, currentQuestion.topic);
-        setIsGeneratingReinforcement(false);
-        if (questions && questions.length > 0) {
-            setReinforcementQuestions(questions);
-        } else {
-            alert("Não foi possível gerar o treino no momento. Verifique sua conexão e tente novamente.");
-        }
-    };
-
     const handleImageError = () => {
         setImageError(true);
     };
@@ -273,28 +268,6 @@ const PastExamArena: React.FC<PastExamArenaProps> = ({ exam, onFinishExam }) => 
                 </button>
             </div>
         )
-    }
-
-    if (reinforcementQuestions) {
-        return (
-            <div className="absolute inset-0 z-50 bg-slate-900 animate-slide-up">
-                <ReinforcementArena
-                    questions={reinforcementQuestions}
-                    topic={currentQuestion.topic}
-                    onClose={() => setReinforcementQuestions(null)}
-                />
-            </div>
-        );
-    }
-
-    if (isGeneratingReinforcement) {
-        return (
-            <div className="absolute inset-0 z-50 bg-slate-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-fade-in">
-                <div className="w-20 h-20 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-6"></div>
-                <h3 className="text-2xl font-bold font-display text-white mb-2">Preparando Treino de Reforço...</h3>
-                <p className="text-indigo-300 font-grotesk max-w-sm">O Pai está criando 3 questões inéditas sobre <b>{currentQuestion.topic}</b> para você massificar esse assunto!</p>
-            </div>
-        );
     }
 
     return (
@@ -393,7 +366,7 @@ const PastExamArena: React.FC<PastExamArenaProps> = ({ exam, onFinishExam }) => 
                     </div>
                 )}
             </main>
-            {showTutor && <AiTutorModal explanation={aiExplanation} onClose={handleNextQuestion} onStartReinforcement={handleStartReinforcement} isLoading={isLoadingExplanation} />}
+            {showTutor && <AiTutorModal explanation={aiExplanation} onClose={handleNextQuestion} isLoading={isLoadingExplanation} />}
         </div>
     );
 };

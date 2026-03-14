@@ -5,6 +5,7 @@ import { saveResult } from '../services/statsService';
 import { supabase } from '../services/supabaseClient';
 import { CheckCircleIcon, CloseIcon } from './icons';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
+import { shuffleOptionsWithCorrectIndex } from '../src/utils/helpers';
 
 interface Props {
     questions: Question[];
@@ -24,10 +25,24 @@ const ReinforcementArena: React.FC<Props> = ({ questions, topic, onClose }) => {
 
     const { play, stop, isPlaying, isSupported } = useTextToSpeech();
 
-    const currentQuestion = questions[questionIndex];
+    const [shuffledQuestions, setShuffledQuestions] = useState<Question[]>(() => {
+        return (questions || []).map(q => {
+            const safeOptions = Array.isArray(q.options) && q.options.length > 0 ? q.options : ['Opção A (Erro de IA)', 'Opção B', 'Opção C', 'Opção D'];
+            const safeCorrectIndex = typeof q.correctOptionIndex === 'number' && q.correctOptionIndex >= 0 && q.correctOptionIndex < safeOptions.length ? q.correctOptionIndex : 0;
+            const { shuffledOptions, newCorrectIndex } = shuffleOptionsWithCorrectIndex(safeOptions, safeCorrectIndex);
+
+            return {
+                ...q,
+                options: shuffledOptions,
+                correctOptionIndex: newCorrectIndex
+            };
+        });
+    });
+
+    const currentQuestion = shuffledQuestions[questionIndex];
 
     const handleAnswer = async (index: number) => {
-        if (isCorrect !== null) return;
+        if (isCorrect !== null || !currentQuestion) return;
 
         setSelectedOption(index);
         const correct = index === currentQuestion.correctOptionIndex;
@@ -78,7 +93,10 @@ const ReinforcementArena: React.FC<Props> = ({ questions, topic, onClose }) => {
 
     if (isFinished) {
         return (
-            <div className="flex flex-col items-center justify-center p-8 bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-900 rounded-2xl shadow-2xl h-full pb-20">
+            <div className="flex flex-col items-center justify-center p-8 bg-gradient-to-br from-indigo-900 via-slate-900 to-slate-900 rounded-2xl shadow-2xl h-full pb-20 relative">
+                <button onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white transition-colors">
+                    <span className="material-icons-round text-2xl">close</span>
+                </button>
                 <div className="text-6xl mb-4">🏆</div>
                 <h2 className="text-2xl font-bold font-display text-white mb-2">Treino Concluído!</h2>
                 <p className="text-slate-300 font-grotesk text-center mb-6">
@@ -96,14 +114,24 @@ const ReinforcementArena: React.FC<Props> = ({ questions, topic, onClose }) => {
         );
     }
 
+    if (!currentQuestion) return null;
+
     const progressPercentage = ((questionIndex + 1) / questions.length) * 100;
 
     return (
-        <div className="flex flex-col h-full bg-slate-900 text-white rounded-xl shadow-2xl overflow-hidden border border-indigo-500/20">
-            <header className="px-6 pt-6 pb-4 bg-gradient-to-r from-indigo-900 to-slate-900 border-b border-indigo-500/20 flex flex-col gap-3">
-                <div className="flex justify-between items-center text-xs font-bold font-grotesk uppercase tracking-widest text-indigo-300">
+        <div className="flex flex-col h-full bg-slate-900 text-white rounded-xl shadow-2xl overflow-hidden border border-indigo-500/20 relative">
+            <header className="px-6 pt-6 pb-4 bg-gradient-to-r from-indigo-900 to-slate-900 border-b border-indigo-500/20 flex flex-col gap-3 relative">
+                <button onClick={onClose} className="absolute top-4 right-4 p-2 text-indigo-300 hover:text-white transition-colors z-10">
+                    <span className="material-icons-round text-2xl">close</span>
+                </button>
+                <div className="flex justify-between items-center text-xs font-bold font-grotesk uppercase tracking-widest text-indigo-300 pr-8">
                     <span>⚡ Treino de Reforço Infinito</span>
-                    <span>{questionIndex + 1} DE {questions.length}</span>
+                    <div className="flex gap-4">
+                        <span>{questionIndex + 1} DE {questions.length}</span>
+                        <button onClick={onClose} className="text-indigo-300 hover:text-white transition-colors" title="Sair do Treino">
+                            SAIR
+                        </button>
+                    </div>
                 </div>
                 {/* Barra de Progresso do Treino */}
                 <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">

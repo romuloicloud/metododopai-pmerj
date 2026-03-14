@@ -40,7 +40,7 @@ export const mockQuestions: Question[] = [
 
 export const mockLesson: TheoryLesson = {
   topic: 'Álgebra (Tópico de Reforço)',
-  explanation: "Opa! A conexão com a IA demorou um pouco. Sem problemas, o Pai tem sempre um plano B! Vamos revisar um conceito chave de Álgebra: encontrar o valor desconhecido (o famoso 'x'). Pense em uma balança: o que tem de um lado do sinal de igual (=) deve ser o mesmo que tem do outro. Se você tira algo de um lado, tem que tirar o mesmo do outro para a balança ficar equilibrada. É simples assim!",
+  explanation: "O Método do Pai apresenta: um conceito chave de Álgebra, encontrar o valor desconhecido (o famoso 'x'). Pense em uma balança: o que tem de um lado do sinal de igual (=) deve ser o mesmo que tem do outro. Se você tira algo de um lado, tem que tirar o mesmo do outro para a balança ficar equilibrada. É simples assim!",
   exercises: [
     {
       question: "Se x + 5 = 12, qual o valor de x?",
@@ -64,7 +64,7 @@ export const mockLesson: TheoryLesson = {
 
 export const mockLessonPortugues: TheoryLesson = {
   topic: 'Substantivos (Tópico de Reforço)',
-  explanation: "A conexão com a IA parece lenta. Não se preocupe, o Pai tem a matéria na ponta da língua! Vamos de Substantivos: são as palavras que dão nome a TUDO: pessoas, lugares, objetos, sentimentos... Se você pode ver, pegar ou sentir, provavelmente é um substantivo. 'Casa', 'Lucas', 'alegria', 'caneta', tudo isso são nomes, ou seja, substantivos!",
+  explanation: "O Método do Pai apresenta o essencial de Português: Substantivos! São as palavras que dão nome a TUDO: pessoas, lugares, objetos, sentimentos... Se você pode ver, pegar ou sentir, provavelmente é um substantivo. 'Casa', 'Lucas', 'alegria', 'caneta', tudo isso são nomes, ou seja, substantivos!",
   exercises: [
     {
       question: "Qual das palavras abaixo é um substantivo que nomeia um sentimento?",
@@ -86,6 +86,30 @@ export const mockLessonPortugues: TheoryLesson = {
   ]
 };
 
+
+export const mockLessonDireito: TheoryLesson = {
+  topic: 'Noções Básicas de Direito (Tópico de Reforço)',
+  explanation: "O Método do Pai te guia no Direito: seja na Legislação da PMERJ ou nos Direitos Humanos, o foco da FGV é a letra da lei combinada com casos práticos. Lembre-se sempre de ler o 'caput' do artigo e buscar exceções. Em Direitos Humanos, o princípio basilar é a Dignidade da Pessoa Humana. Na legislação da PMERJ, os pilares são a Hierarquia e Disciplina.",
+  exercises: [
+    {
+      question: "Qual é o princípio fundamental que rege os Direitos Humanos e serve de base para toda a legislação relacionada?",
+      options: ["Legalidade estrita", "Dignidade da Pessoa Humana", "Retroatividade da lei", "Presunção de culpa"],
+      correctOptionIndex: 1
+    },
+    {
+      question: "No contexto da Polícia Militar, quais são os princípios institucionais basilares previstos no Estatuto?",
+      options: ["Hierarquia e Disciplina", "Liberdade e Igualdade", "Honra e Coragem", "Subordinação e Ação"],
+      correctOptionIndex: 0,
+      explanation: "A hierarquia (ordenação da autoridade em níveis diferentes) e a disciplina (rigoroso acatamento e observância das leis/regulamentos) são a base institucional estrutural da Polícia Militar."
+    },
+    {
+      question: "Segundo a CF/88, 'a lei não excluirá da apreciação do Poder Judiciário lesão ou ameaça a direito'. Trata-se do princípio da:",
+      options: ["Inafastabilidade da jurisdição", "Ampla defesa prévia", "Contraditório processual", "Juiz natural e imparcial"],
+      correctOptionIndex: 0,
+      explanation: "O princípio da inafastabilidade da jurisdição (também chamado de direito de ação ou direito de petição) garante a todo e qualquer cidadão o direito de acionar o Judiciário."
+    }
+  ]
+};
 
 export const mockAchievements: Achievement[] = [
   { id: 'ach1', name: '5 Dias de Fogo', icon: 'local_fire_department', achieved: true },

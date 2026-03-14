@@ -1,14 +1,15 @@
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { Question, AiExplanation, TheoryLesson } from '../types';
-import { mockQuestions, mockLesson, mockLessonPortugues } from './mockData';
+import { mockQuestions, mockLesson, mockLessonPortugues, mockLessonDireito } from './mockData';
 import { supabase } from './supabaseClient';
 import { syllabus } from './syllabusData';
+import { shuffleOptionsWithCorrectIndex } from '../src/utils/helpers';
 
 // A chave de API é injetada pelo Vite via VITE_GEMINI_API_KEY
 // Usamos uma inicialização segura que não crasha o app se a chave estiver ausente
 let ai: any;
 try {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || 'AIzaSyB8B50gF5834SiDx7Cqj1Z-evCS1LweCC0';
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (apiKey) {
         ai = new GoogleGenAI({ apiKey });
         console.log("GoogleGenAI initialized successfully!");
@@ -119,7 +120,14 @@ export const getAIExplanation = async (question: Question, incorrectAnswer: stri
         });
 
         if (response.text) {
-            return JSON.parse(response.text) as AiExplanation;
+            // A regex original às vezes falha caso a AI insira textos soltos em torno do markdown
+            // Forçamos a limpeza global de blocos e extraimos só o que se parece um JSON
+            const rawText = response.text;
+            const cleanedText = rawText.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, '$1')
+                .replace(/^[\s\S]*?({[\s\S]*})[\s\S]*$/, '$1')
+                .trim();
+
+            return JSON.parse(cleanedText) as AiExplanation;
         }
         return null;
 
@@ -185,7 +193,12 @@ export const generateQuestionFromEdital = async (subject: 'LÍNGUA PORTUGUESA' |
         });
 
         if (response.text) {
-            const generatedQuestion = JSON.parse(response.text) as Omit<Question, 'id'>;
+            const rawText = response.text;
+            const cleanText = rawText.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, '$1')
+                .replace(/^[\s\S]*?({[\s\S]*})[\s\S]*$/, '$1')
+                .trim();
+
+            const generatedQuestion = JSON.parse(cleanText) as Omit<Question, 'id'>;
             const typedSubject = subject === 'LÍNGUA PORTUGUESA' ? 'Língua Portuguesa' : 'Matemática Básica';
             return { ...generatedQuestion, subject: typedSubject as any, id: `gen-${Date.now()}` };
         }
@@ -194,11 +207,17 @@ export const generateQuestionFromEdital = async (subject: 'LÍNGUA PORTUGUESA' |
     } catch (error) {
         console.error("Error generating question from edital, returning mock question:", error);
         // Fallback para uma questão padrão em caso de erro.
-        return mockQuestions[Math.floor(Math.random() * mockQuestions.length)];
+        const mockQ = mockQuestions[Math.floor(Math.random() * mockQuestions.length)];
+        const { shuffledOptions, newCorrectIndex } = shuffleOptionsWithCorrectIndex(mockQ.options, mockQ.correctOptionIndex);
+        return {
+            ...mockQ,
+            options: shuffledOptions,
+            correctOptionIndex: newCorrectIndex
+        };
     }
 };
 
-export const generateTheoryLesson = async (topic: string, isDeepDive: boolean = false): Promise<TheoryLesson> => {
+export const generateTheoryLesson = async (topic: string, isDeepDive: boolean = false, knownSubject?: string): Promise<TheoryLesson> => {
     // Se NÃO FOR aprofundamento, tentamos cache. Se FOR aprofundamento, sempre bate na IA p/ ineditismo.
     if (!isDeepDive) {
         // Estratégia de Cache com Supabase
@@ -228,15 +247,15 @@ export const generateTheoryLesson = async (topic: string, isDeepDive: boolean = 
     if (isDeepDive) {
         prompt = `Generate a DEEP DIVE micro-lesson for the topic: "${topic}". 
         The student already read the basics and wants a deeper understanding.
-        1. A theory explanation of max 300 words, focusing on exceptions, edge cases, and FGV "pegadinhas" (tricks) for an adult studying for PMERJ.
-        2. Exactly 3 multiple-choice questions (MCQs) of 'Desafio' difficulty (exam-level, tricky).
-        Each question must have 4 options and a detailed explanation of why the correct answer is correct.`;
+        1. "topic": the topic name.
+        2. "explanation": A theory explanation of max 300 words, focusing on exceptions, edge cases, and FGV tricks for an adult studying for PMERJ.
+        3. "exercises": Exactly 3 multiple-choice questions (MCQs) of 'Desafio' difficulty. Each with 4 options, the correctOptionIndex (0-3), and a detailed explanation.`;
     } else {
         prompt = `Generate a micro-lesson for the topic: "${topic}". 
         The content must have:
-        1. A theory explanation of max 300 words, clear and objective for an adult studying for PMERJ.
-        2. Exactly 4 multiple-choice questions (MCQs) with progressive difficulty.
-        Each question must have 4 options and a detailed explanation of why the correct answer is correct.`;
+        1. "topic": the topic name.
+        2. "explanation": A theory explanation of max 300 words, clear and objective for an adult studying for PMERJ.
+        3. "exercises": Exactly 4 multiple-choice questions (MCQs) with progressive difficulty. Each with 4 options, the correctOptionIndex (0-3), and a detailed explanation.`;
     }
 
     try {
@@ -282,7 +301,11 @@ export const generateTheoryLesson = async (topic: string, isDeepDive: boolean = 
             throw new Error("Empty response from AI.");
         }
 
-        const lessonData = JSON.parse(response.text) as TheoryLesson;
+        const rawText = response.text;
+        const cleanText = rawText.replace(/~~~\s*([\s\S]*?)\s*~~~/g, '$1').replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, '$1')
+            .replace(/^[\s\S]*?({[\s\S]*})[\s\S]*$/, '$1')
+            .trim();
+        const lessonData = JSON.parse(cleanText) as TheoryLesson;
 
         // Só salva no cache se não for aprofundamento (aprofundamento é gerado on-fly com variação de temperatura)
         if (!isDeepDive) {
@@ -302,19 +325,36 @@ export const generateTheoryLesson = async (topic: string, isDeepDive: boolean = 
 
         // Intelligent Fallback: Check which subject the topic belongs to
         let subject: keyof typeof syllabus | 'Unknown' = 'Unknown';
-        for (const subj in syllabus) {
-            if (syllabus[subj as keyof typeof syllabus].includes(topic)) {
-                subject = subj as keyof typeof syllabus;
-                break;
+
+        if (knownSubject) {
+            subject = knownSubject as keyof typeof syllabus;
+        } else {
+            for (const subj in syllabus) {
+                if (syllabus[subj as keyof typeof syllabus].includes(topic)) {
+                    subject = subj as keyof typeof syllabus;
+                    break;
+                }
             }
         }
 
-        if (subject === 'Língua Portuguesa') {
+        if (subject === 'Língua Portuguesa' || (knownSubject && knownSubject.includes('Portugu'))) {
             console.log("Serving Portuguese fallback lesson.");
-            return mockLessonPortugues;
+            return {
+                ...mockLessonPortugues,
+                topic: topic
+            };
+        } else if (subject === 'Direitos Humanos' || subject === 'Legislação Aplicada à PMERJ' || (knownSubject && (knownSubject.includes('Humanos') || knownSubject.includes('Legisla')))) {
+            console.log("Serving Law/Human Rights fallback lesson.");
+            return {
+                ...mockLessonDireito,
+                topic: topic
+            };
         } else {
-            console.log("Serving Math fallback lesson.");
-            return mockLesson; // Default to math mock
+            console.log("Serving generic fallback lesson.");
+            return {
+                ...mockLesson,
+                topic: topic
+            };
         }
     }
 };
@@ -367,7 +407,12 @@ export const validateExamAnswer = async (question: Question, incorrectAnswer: st
 
         if (response.text) {
             // Gemini might return an object without the optional fields, so we ensure they exist.
-            const parsed = JSON.parse(response.text);
+            const rawText = response.text;
+            const cleanText = rawText.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, '$1')
+                .replace(/^[\s\S]*?({[\s\S]*})[\s\S]*$/, '$1')
+                .trim();
+
+            const parsed = JSON.parse(cleanText);
             return {
                 ...parsed,
                 quickChallenge: parsed.quickChallenge || null,
@@ -436,7 +481,40 @@ export const generateReinforcementQuestions = async (subject: string, topic: str
         ]) as GenerateContentResponse;
 
         if (response.text) {
-            const generatedQuestions = JSON.parse(response.text) as Omit<Question, 'id'>[];
+            const rawText = response.text;
+            // Tentamos limpar marcações (```json ... ``` e possivelmente [ ... ] no começo)
+            const cleanText = rawText.replace(/```(?:json)?\s*([\s\S]*?)\s*```/g, '$1')
+                .trim();
+            // Para consertar marcações como [ {..} ] soltos no final, forçamos um substring
+            let extractStr = cleanText;
+            const openBracket = cleanText.indexOf('[');
+            const openBrace = cleanText.indexOf('{');
+            if (openBracket !== -1 && (openBrace === -1 || openBracket < openBrace)) {
+                const closeBracket = cleanText.lastIndexOf(']');
+                if (closeBracket !== -1) extractStr = cleanText.substring(openBracket, closeBracket + 1);
+            } else if (openBrace !== -1) {
+                const closeBrace = cleanText.lastIndexOf('}');
+                if (closeBrace !== -1) extractStr = cleanText.substring(openBrace, closeBrace + 1);
+            }
+
+            const parsed = JSON.parse(extractStr);
+            let generatedQuestions: Omit<Question, 'id'>[] = [];
+
+            if (Array.isArray(parsed)) {
+                generatedQuestions = parsed;
+            } else if (parsed && typeof parsed === 'object') {
+                // Muito comum a IA enviar { "questions": [...] } ignorando a regra do root array
+                if (Array.isArray(parsed.questions)) {
+                    generatedQuestions = parsed.questions;
+                } else if (Array.isArray(parsed.questoes)) {
+                    generatedQuestions = parsed.questoes;
+                } else {
+                    throw new Error("Invalid object format from AI without array property.");
+                }
+            } else {
+                throw new Error("Invalid JSON type from AI, expected Object or Array.");
+            }
+
             return generatedQuestions.map(q => ({
                 ...q,
                 id: `gen-reinforce-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
@@ -447,24 +525,31 @@ export const generateReinforcementQuestions = async (subject: string, topic: str
     } catch (error) {
         console.error("Error generating reinforcement questions, using fallback:", error);
         // Fallback: retornar questoes mock de acordo  com a disciplina para nao travar a tela
-        if (subject.toLowerCase().includes('portugu')) {
-            return mockLessonPortugues.exercises.map((e, index) => ({
-                id: `mock-pt-${index}`,
-                subject: 'Língua Portuguesa',
-                topic: topic,
-                text: e.question,
-                options: e.options,
-                correctOptionIndex: e.correctOptionIndex
-            }));
+        const safeSubject = subject || 'Matemática Básica';
+        if (safeSubject.toLowerCase().includes('portugu')) {
+            return mockLessonPortugues.exercises.map((e, index) => {
+                const { shuffledOptions, newCorrectIndex } = shuffleOptionsWithCorrectIndex(e.options, e.correctOptionIndex);
+                return {
+                    id: `mock-pt-${index}`,
+                    subject: 'Língua Portuguesa',
+                    topic: topic || 'Geral',
+                    text: e.question,
+                    options: shuffledOptions,
+                    correctOptionIndex: newCorrectIndex
+                };
+            });
         } else {
-            return mockLesson.exercises.map((e, index) => ({
-                id: `mock-mat-${index}`,
-                subject: 'Matemática Básica',
-                topic: topic,
-                text: e.question,
-                options: e.options,
-                correctOptionIndex: e.correctOptionIndex
-            }));
+            return mockLesson.exercises.map((e, index) => {
+                const { shuffledOptions, newCorrectIndex } = shuffleOptionsWithCorrectIndex(e.options, e.correctOptionIndex);
+                return {
+                    id: `mock-mat-${index}`,
+                    subject: 'Matemática Básica',
+                    topic: topic || 'Geral',
+                    text: e.question,
+                    options: shuffledOptions,
+                    correctOptionIndex: newCorrectIndex
+                };
+            });
         }
     }
 };

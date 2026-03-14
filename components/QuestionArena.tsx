@@ -8,8 +8,19 @@ import { SmartToyIcon, CheckCircleIcon, CloseIcon } from './icons';
 import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import { PaywallOverlay } from './PaywallOverlay';
 import type { UserProfile } from '../types';
+import { shuffleOptionsWithCorrectIndex } from '../src/utils/helpers';
 
-const AiTutorModal: React.FC<{ explanation: AiExplanation | null; onClose: () => void; onStartReinforcement: () => void; isLoading: boolean }> = ({ explanation, onClose, onStartReinforcement, isLoading }) => {
+const AiTutorModal: React.FC<{ explanation: AiExplanation | null; onClose: () => void; isLoading: boolean }> = ({ explanation, onClose, isLoading }) => {
+    const { play, stop, isPlaying, isSupported } = useTextToSpeech();
+
+    useEffect(() => {
+        if (explanation && explanation.attentionDetail && isSupported) {
+            const textToRead = `Ponto de Atenção: ${explanation.attentionDetail}. Visão Estratégica: ${explanation.keyInsight}`;
+            play(textToRead);
+        }
+        return () => stop();
+    }, [explanation, isSupported, play, stop]);
+
     if (!explanation && !isLoading) return null;
 
     return (
@@ -46,12 +57,8 @@ const AiTutorModal: React.FC<{ explanation: AiExplanation | null; onClose: () =>
                         )}
                     </div>
                 ) : null}
-                <button onClick={onClose} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold uppercase tracking-wider shadow-lg shrink-0 transition-colors">
+                <button onClick={() => { stop(); onClose(); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold uppercase tracking-wider shadow-lg shrink-0 transition-colors">
                     <span>Entendi o método!</span>
-                </button>
-                <button onClick={onStartReinforcement} className="mt-3 w-full border-2 border-primary text-primary hover:bg-primary/10 py-4 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors">
-                    <span className="material-icons-round">fitness_center</span>
-                    Treino de Reforço
                 </button>
             </div>
         </div>
@@ -116,10 +123,6 @@ const QuestionArena: React.FC<QuestionArenaProps> = ({ userProfile }) => {
     const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
     const [imageError, setImageError] = useState(false);
 
-    // Treino de Reforço States
-    const [isGeneratingReinforcement, setIsGeneratingReinforcement] = useState(false);
-    const [reinforcementQuestions, setReinforcementQuestions] = useState<Question[] | null>(null);
-
     const { play, stop, isPlaying, isSupported } = useTextToSpeech();
 
     /**
@@ -161,19 +164,25 @@ const QuestionArena: React.FC<QuestionArenaProps> = ({ userProfile }) => {
 
         const shuffled = pool.sort(() => Math.random() - 0.5);
 
-        const mapped: Question[] = shuffled.map((q: any) => ({
-            id: q.id,
-            topic: q.topic || 'Geral',
-            subject: q.subject?.includes('Portugu') ? 'Língua Portuguesa' as const :
+        const mapped: Question[] = shuffled.map((q: any) => {
+            const subject = q.subject?.includes('Portugu') ? 'Língua Portuguesa' as const :
                 q.subject?.includes('Matem') ? 'Matemática Básica' as const :
                     q.subject?.includes('Humanos') ? 'Direitos Humanos' as const :
-                        'Legislação Aplicada à PMERJ' as const,
-            text: q.text,
-            baseText: q.base_text || undefined,
-            imageUrl: q.image_url || undefined,
-            options: q.options,
-            correctOptionIndex: q.correct_option_index,
-        }));
+                        'Legislação Aplicada à PMERJ' as const;
+
+            const { shuffledOptions, newCorrectIndex } = shuffleOptionsWithCorrectIndex(q.options, q.correct_option_index);
+
+            return {
+                id: q.id,
+                topic: q.topic || 'Geral',
+                subject,
+                text: q.text,
+                baseText: q.base_text || undefined,
+                imageUrl: q.image_url || undefined,
+                options: shuffledOptions,
+                correctOptionIndex: newCorrectIndex,
+            };
+        });
 
         setQuestions(mapped);
         setQuestionIndex(0);
@@ -203,18 +212,6 @@ const QuestionArena: React.FC<QuestionArenaProps> = ({ userProfile }) => {
             const explanation = await getAIExplanation(currentQuestion, currentQuestion.options[optionIndex]);
             setAiExplanation(explanation);
             setIsLoadingExplanation(false);
-        }
-    };
-
-    const handleStartReinforcement = async () => {
-        setIsGeneratingReinforcement(true);
-        const currentQuestion = questions[questionIndex];
-        const fetchedQuestions = await generateReinforcementQuestions(currentQuestion.subject, currentQuestion.topic);
-        setIsGeneratingReinforcement(false);
-        if (fetchedQuestions && fetchedQuestions.length > 0) {
-            setReinforcementQuestions(fetchedQuestions);
-        } else {
-            alert("Não foi possível gerar o treino no momento. Verifique sua conexão e tente novamente.");
         }
     };
 
@@ -257,28 +254,6 @@ const QuestionArena: React.FC<QuestionArenaProps> = ({ userProfile }) => {
 
     if (!selectedSubject) {
         return <SubjectSelector onSelect={handleSubjectSelect} />;
-    }
-
-    if (reinforcementQuestions) {
-        return (
-            <div className="absolute inset-0 z-50 bg-slate-900 animate-slide-up">
-                <ReinforcementArena
-                    questions={reinforcementQuestions}
-                    topic={questions[questionIndex]?.topic}
-                    onClose={() => setReinforcementQuestions(null)}
-                />
-            </div>
-        );
-    }
-
-    if (isGeneratingReinforcement) {
-        return (
-            <div className="absolute inset-0 z-50 bg-slate-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center animate-fade-in">
-                <div className="w-20 h-20 border-4 border-primary border-t-transparent rounded-full animate-spin mb-6"></div>
-                <h3 className="text-2xl font-bold font-display text-white mb-2">Preparando Treino de Reforço...</h3>
-                <p className="text-blue-300 font-grotesk max-w-sm">O Pai está criando 3 questões inéditas sobre <b>{questions[questionIndex]?.topic}</b> para você massificar esse assunto!</p>
-            </div>
-        );
     }
 
     if (isLoadingQuestion) {
@@ -387,7 +362,7 @@ const QuestionArena: React.FC<QuestionArenaProps> = ({ userProfile }) => {
                     </div>
                 )}
             </main>
-            {showTutor && <AiTutorModal explanation={aiExplanation} isLoading={isLoadingExplanation} onClose={handleNextQuestion} onStartReinforcement={handleStartReinforcement} />}
+            {showTutor && <AiTutorModal explanation={aiExplanation} isLoading={isLoadingExplanation} onClose={handleNextQuestion} />}
         </div>
     );
 };

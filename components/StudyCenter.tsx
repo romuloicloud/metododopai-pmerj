@@ -8,16 +8,26 @@ import { useTextToSpeech } from '../hooks/useTextToSpeech';
 import type { UserProfile } from '../types';
 
 const SimpleTutorModal: React.FC<{ explanation: string; onClose: () => void }> = ({ explanation, onClose }) => {
+    const { play, stop, isPlaying, isSupported } = useTextToSpeech();
+
+    useEffect(() => {
+        if (explanation && isSupported) {
+            play(explanation);
+        }
+        return () => stop();
+    }, [explanation, isSupported, play, stop]);
+
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex flex-col justify-end">
             <div className="flex flex-col items-center mb-[-24px] z-50">
-                <div className="w-24 h-24 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(22,75,182,0.5)] border-4 border-primary overflow-hidden">
+                <div className="w-24 h-24 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(22,75,182,0.5)] border-4 border-primary overflow-hidden relative">
                     <img alt="Avatar do Método do Pai" className="w-full h-full object-cover" src="/assets/avatar-pai.jpg" />
+                    {isPlaying && <div className="absolute inset-0 bg-primary/20 animate-pulse rounded-full"></div>}
                 </div>
             </div>
             <div className="bg-white dark:bg-slate-900 rounded-t-2xl px-6 pt-10 pb-24 shadow-[0_-10px_40px_rgba(0,0,0,0.2)] flex flex-col max-h-[80%] animate-slide-up">
                 <p className="text-center font-serif italic text-sm text-slate-500 dark:text-slate-400 -mt-4 mb-4">Assinatura do Pai</p>
-                <div className="text-center mb-6 shrink-0">
+                <div className="text-center mb-6 shrink-0 relative">
                     <h3 className="text-xl font-bold text-slate-800 dark:text-white">Opa! Vamos corrigir isso 💡</h3>
                     <p className="text-slate-500 dark:text-slate-400 text-sm">Entenda o pulo do gato:</p>
                 </div>
@@ -26,7 +36,7 @@ const SimpleTutorModal: React.FC<{ explanation: string; onClose: () => void }> =
                         <p className="text-sm leading-relaxed text-slate-800 dark:text-slate-100">{explanation}</p>
                     </div>
                 </div>
-                <button onClick={onClose} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold uppercase tracking-wider shadow-lg shrink-0 transition-colors">
+                <button onClick={() => { stop(); onClose(); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-bold uppercase tracking-wider shadow-lg shrink-0 transition-colors">
                     <span>Entendi, tentar próxima!</span>
                 </button>
             </div>
@@ -351,7 +361,8 @@ const StudyCenter: React.FC<StudyCenterProps> = ({ onSelectExam, setView, userPr
         }
 
         // 2. Fallback: Generate via Gemini AI (Old Logic)
-        const result = await generateTheoryLesson(topic, false);
+        const knownSubj = loadingSubject || filterSubject || undefined;
+        const result = await generateTheoryLesson(topic, false, knownSubj as string | undefined);
 
         setLesson(result);
         setIsLoading(false);

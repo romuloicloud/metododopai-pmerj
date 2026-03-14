@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { JourneyPhase as JPhase, Question, AiExplanation } from '../types';
+import React, { useState, useEffect } from 'react';
+import { JourneyPhase as JPhase, Question, AiExplanation, TheoryLesson } from '../types';
+import { shuffleOptionsWithCorrectIndex } from '../src/utils/helpers';
 import { updatePhaseProgress } from '../services/journeyService';
 import { getAIExplanation, generateTheoryLesson } from '../services/geminiService';
 import { supabase } from '../services/supabaseClient';
 import { TheoryModal } from './StudyCenter';
+import { useTextToSpeech } from '../hooks/useTextToSpeech';
 
 interface Props {
     phase: JPhase;
@@ -27,6 +29,16 @@ const JourneyPhaseView: React.FC<Props> = ({ phase, onBack, onPhaseComplete }) =
     const [trainingComplete, setTrainingComplete] = useState(false);
     const [bossComplete, setBossComplete] = useState(false);
 
+    const { play, stop, isPlaying, isSupported } = useTextToSpeech();
+
+    useEffect(() => {
+        if (showAiModal && aiExplanation && isSupported) {
+            const textToRead = `Ponto de Atenção: ${aiExplanation.attentionDetail}. Visão Estratégica: ${aiExplanation.keyInsight}`;
+            play(textToRead);
+        }
+        return () => stop();
+    }, [showAiModal, aiExplanation, isSupported, play, stop]);
+
     // Teoria
     const [theoryHtml, setTheoryHtml] = useState<string | null>(null);
     const [isTheoryModalOpen, setIsTheoryModalOpen] = useState(false);
@@ -34,7 +46,12 @@ const JourneyPhaseView: React.FC<Props> = ({ phase, onBack, onPhaseComplete }) =
     // Buscar questões para treino ou boss
     const loadQuestions = async (count: number) => {
         setIsLoadingQuestions(true);
-        const subjectFilter = phase.subject === 'Português' ? '%Portugu%' : '%Matem%';
+        let subjectFilter = '%';
+        if (phase.subject.includes('Portugu')) subjectFilter = '%Portugu%';
+        else if (phase.subject.includes('Matem')) subjectFilter = '%Matem%';
+        else if (phase.subject.includes('Humanos')) subjectFilter = '%Human%';
+        else if (phase.subject.includes('Legisla')) subjectFilter = '%Legisla%';
+        else subjectFilter = `%${phase.subject}%`;
 
         const { data, error } = await supabase
             .from('questoes')
@@ -51,20 +68,27 @@ const JourneyPhaseView: React.FC<Props> = ({ phase, onBack, onPhaseComplete }) =
 
         // Embaralhar e pegar a quantidade necessária
         const shuffled = (data || []).sort(() => Math.random() - 0.5);
-        const selected = shuffled.slice(0, count).map((q: any) => ({
-            id: q.id,
-            topic: q.topic || phase.topic,
-            subject: q.subject?.includes('Portugu') ? 'Língua Portuguesa' as const :
+
+        const selected = shuffled.slice(0, count).map((q: any) => {
+            const subject = q.subject?.includes('Portugu') ? 'Língua Portuguesa' as const :
                 q.subject?.includes('Matem') ? 'Matemática Básica' as const :
                     q.subject?.includes('Humanos') ? 'Direitos Humanos' as const :
-                        'Legislação Aplicada à PMERJ' as const,
-            text: q.text,
-            baseText: q.base_text || undefined,
-            imageUrl: q.image_url || undefined,
-            imageUrl2: q.image_url_2 || undefined,
-            options: q.options,
-            correctOptionIndex: q.correct_option_index,
-        }));
+                        'Legislação Aplicada à PMERJ' as const;
+
+            const { shuffledOptions, newCorrectIndex } = shuffleOptionsWithCorrectIndex(q.options, q.correct_option_index);
+
+            return {
+                id: q.id,
+                topic: q.topic || phase.topic,
+                subject,
+                text: q.text,
+                baseText: q.base_text || undefined,
+                imageUrl: q.image_url || undefined,
+                imageUrl2: q.image_url_2 || undefined,
+                options: shuffledOptions,
+                correctOptionIndex: newCorrectIndex,
+            };
+        });
 
         setTrainingQuestions(selected);
         setCurrentQIndex(0);
@@ -111,6 +135,7 @@ const JourneyPhaseView: React.FC<Props> = ({ phase, onBack, onPhaseComplete }) =
     };
 
     const handleNext = async () => {
+        stop();
         setShowAiModal(false);
         setAiExplanation(null);
         setSelectedOption(null);
@@ -347,8 +372,11 @@ const JourneyPhaseView: React.FC<Props> = ({ phase, onBack, onPhaseComplete }) =
     return (
         <div className="relative flex flex-col min-h-screen bg-slate-900">
             {/* Header */}
-            <header className="px-6 pt-6 pb-3">
-                <div className="flex justify-between items-center mb-3">
+            <header className="px-6 pt-6 pb-3 relative">
+                <button onClick={onBack} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white transition-colors z-10" title="Sair da Fase">
+                    <span className="material-icons-round text-2xl">close</span>
+                </button>
+                <div className="flex justify-between items-center mb-3 pr-8">
                     <span className={`text-sm font-bold font-grotesk ${activeStep === 'boss' ? 'text-purple-300' : 'text-amber-300'}`}>
                         {activeStep === 'boss' ? '⚔️ BOSS' : '🎯 TREINO'} · Fase {phase.phaseNumber}
                     </span>
@@ -369,6 +397,25 @@ const JourneyPhaseView: React.FC<Props> = ({ phase, onBack, onPhaseComplete }) =
             {/* Questão */}
             <main className="flex-1 overflow-y-auto px-6 pt-2 pb-32">
                 <div className="mb-6">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                        <h2 className="text-lg font-bold text-white leading-snug font-display flex-1">{currentQ.text}</h2>
+                        {isSupported && (
+                            <button
+                                onClick={() => {
+                                    if (isPlaying) {
+                                        stop();
+                                    } else {
+                                        const textToRead = `${currentQ.baseText ? currentQ.baseText + '. ' : ''}${currentQ.text}. As alternativas são: ${currentQ.options.map((opt, i) => `Letra ${String.fromCharCode(65 + i)}: ${opt}`).join('. ')}.`;
+                                        play(textToRead);
+                                    }
+                                }}
+                                className={`p-3 rounded-full shrink-0 transition-colors shadow-sm cursor-pointer ${isPlaying ? 'bg-indigo-500 text-white shadow-indigo-500/30 animate-pulse' : 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'}`}
+                                title={isPlaying ? "Parar leitura" : "Ouvir questão"}
+                            >
+                                <span className="material-icons-round text-xl">{isPlaying ? 'stop' : 'volume_up'}</span>
+                            </button>
+                        )}
+                    </div>
                     {currentQ.baseText && (
                         <div className="mb-4 p-4 bg-slate-800/50 border border-slate-700 rounded-xl max-h-48 overflow-y-auto shadow-inner">
                             <p className="text-sm text-slate-300 whitespace-pre-wrap font-grotesk leading-relaxed">{currentQ.baseText}</p>
@@ -384,7 +431,6 @@ const JourneyPhaseView: React.FC<Props> = ({ phase, onBack, onPhaseComplete }) =
                             <img src={currentQ.imageUrl2} alt="Questão (parte 2)" className="max-w-full rounded-xl border border-slate-700" />
                         </div>
                     )}
-                    <h2 className="text-lg font-bold text-white leading-snug font-display">{currentQ.text}</h2>
                 </div>
 
                 <div className="space-y-3">
