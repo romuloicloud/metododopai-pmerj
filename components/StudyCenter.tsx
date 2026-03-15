@@ -321,45 +321,8 @@ const StudyCenter: React.FC<StudyCenterProps> = ({ onSelectExam, setView, userPr
         setIsLoading(true);
         setLoadingSubject(subject);
 
-        // 1. Try to fetch content from Supabase
-        try {
-            const { data: theoryData, error: theoryError } = await supabase
-                .from('teoria')
-                .select('id, conteudo_html')
-                .eq('materia', subject)
-                .eq('topico', topic)
-                .maybeSingle();
-
-            if (theoryData) {
-                // Fetch associated questions
-                const { data: questionsData } = await supabase
-                    .from('treinamento')
-                    .select('*')
-                    .eq('teoria_id', theoryData.id);
-
-                setTheoryHtml(theoryData.conteudo_html);
-
-                if (questionsData) {
-                    const mappedExercises = questionsData.map((q: any) => ({
-                        question: q.pergunta,
-                        options: q.alternativas,
-                        correctOptionIndex: q.correta,
-                        explanation: q.explicacao
-                    }));
-                    setPreloadedExercises(mappedExercises);
-                }
-
-                setIsTheoryModalOpen(true);
-                setIsLoading(false);
-                setLoadingSubject(null);
-                return;
-            }
-
-        } catch (error) {
-            console.error("Error fetching content from Supabase:", error);
-            // Fallback to AI generation below
-        }
-
+        // Bypass Supabase fetch para Pedro II - Forçando Geração IA para PMERJ
+        
         // 2. Fallback: Generate via Gemini AI (Old Logic)
         const knownSubj = loadingSubject || filterSubject || undefined;
         const result = await generateTheoryLesson(topic, false, knownSubj as string | undefined);

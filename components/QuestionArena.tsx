@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Question, AiExplanation } from '../types';
-import { getAIExplanation, generateReinforcementQuestions } from '../services/geminiService';
+import { getAIExplanation, generateReinforcementQuestions, generateQuestionFromEdital } from '../services/geminiService';
 import { saveResult } from '../services/statsService';
 import { supabase } from '../services/supabaseClient';
 import ReinforcementArena from './ReinforcementArena';
@@ -126,67 +126,38 @@ const QuestionArena: React.FC<QuestionArenaProps> = ({ userProfile }) => {
     const { play, stop, isPlaying, isSupported } = useTextToSpeech();
 
     /**
-     * Busca questões do banco Supabase (questoes) com randomização.
-     * Evita repetição usando os IDs já respondidos.
+     * Gera questões usando a IA (Gemini) baseadas no edital da PMERJ
      */
-    const fetchQuestionsFromDB = useCallback(async (subject: ValidSubject) => {
+    const fetchQuestionsFromAI = useCallback(async (subject: ValidSubject) => {
         setIsLoadingQuestion(true);
         setError(null);
 
-        const subjectFilter = subject === 'Língua Portuguesa' ? '%Portugu%' :
-            subject === 'Matemática Básica' ? '%Matem%' :
-                subject === 'Direitos Humanos' ? '%Humanos%' :
-                    '%Legisla%';
+        try {
+            // Generate 3 questions in parallel
+            const promises = [
+                generateQuestionFromEdital(subject),
+                generateQuestionFromEdital(subject),
+                generateQuestionFromEdital(subject)
+            ];
+            
+            const results = await Promise.all(promises);
+            const validQuestions = results.filter((q): q is Question => q !== null);
 
-        const { data, error: dbError } = await supabase
-            .from('questoes')
-            .select('*')
-            .ilike('exam_id', 'pmerj%')
-            .ilike('subject', subjectFilter)
-            .limit(200);
+            if (validQuestions.length === 0) {
+                setError(`Não foi possível gerar questões para ${subject} no momento.`);
+                setIsLoadingQuestion(false);
+                return;
+            }
 
-        if (dbError) {
-            console.error('Erro buscando questões:', dbError);
-            setError('Erro ao buscar questões. Tente novamente.');
+            setQuestions(validQuestions);
+            setQuestionIndex(0);
+            
+        } catch (err) {
+            console.error('Erro gerando questões:', err);
+            setError('Erro ao gerar questões. Tente novamente.');
+        } finally {
             setIsLoadingQuestion(false);
-            return;
         }
-
-        if (!data || data.length === 0) {
-            setError(`Nenhuma questão de ${subject} disponível no banco de dados.`);
-            setIsLoadingQuestion(false);
-            return;
-        }
-
-        // Filtrar questões já respondidas e embaralhar
-        const available = data.filter(q => !answeredIds.has(q.id));
-        const pool = available.length > 0 ? available : data; // Se respondeu tudo, recicla
-
-        const shuffled = pool.sort(() => Math.random() - 0.5);
-
-        const mapped: Question[] = shuffled.map((q: any) => {
-            const subject = q.subject?.includes('Portugu') ? 'Língua Portuguesa' as const :
-                q.subject?.includes('Matem') ? 'Matemática Básica' as const :
-                    q.subject?.includes('Humanos') ? 'Direitos Humanos' as const :
-                        'Legislação Aplicada à PMERJ' as const;
-
-            const { shuffledOptions, newCorrectIndex } = shuffleOptionsWithCorrectIndex(q.options, q.correct_option_index);
-
-            return {
-                id: q.id,
-                topic: q.topic || 'Geral',
-                subject,
-                text: q.text,
-                baseText: q.base_text || undefined,
-                imageUrl: q.image_url || undefined,
-                options: shuffledOptions,
-                correctOptionIndex: newCorrectIndex,
-            };
-        });
-
-        setQuestions(mapped);
-        setQuestionIndex(0);
-        setIsLoadingQuestion(false);
     }, [answeredIds]);
 
     const handleAnswer = async (optionIndex: number) => {
@@ -226,7 +197,7 @@ const QuestionArena: React.FC<QuestionArenaProps> = ({ userProfile }) => {
             setQuestionIndex(prev => prev + 1);
         } else {
             // Recarregar novas questões embaralhadas
-            fetchQuestionsFromDB(selectedSubject!);
+            fetchQuestionsFromAI(selectedSubject!);
         }
     };
 
@@ -234,7 +205,7 @@ const QuestionArena: React.FC<QuestionArenaProps> = ({ userProfile }) => {
         setQuestions([]);
         setQuestionIndex(0);
         setSelectedSubject(subject);
-        fetchQuestionsFromDB(subject);
+        fetchQuestionsFromAI(subject);
     };
 
     const handleImageError = () => { setImageError(true); };
@@ -271,7 +242,7 @@ const QuestionArena: React.FC<QuestionArenaProps> = ({ userProfile }) => {
             <div className="flex flex-col items-center justify-center h-full text-center p-6">
                 <span className="text-4xl mb-4">😕</span>
                 <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-300 mb-2">{error}</h2>
-                <button onClick={() => fetchQuestionsFromDB(selectedSubject!)}
+                <button onClick={() => fetchQuestionsFromAI(selectedSubject!)}
                     className="mt-4 px-6 py-3 bg-primary text-white rounded-xl font-bold">
                     Tentar novamente
                 </button>

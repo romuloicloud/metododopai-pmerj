@@ -22,46 +22,34 @@ try {
 
 
 const editalContentPlaceholder = `
-CONTEÚDO PROGRAMÁTICO - COLÉGO PEDRO II / FAETEC (6º ANO)
+CONTEÚDO PROGRAMÁTICO - PMERJ SOLDADO
 
 I - LÍNGUA PORTUGUESA
-1. Compreensão Textual: Textos verbais/não verbais, literários/não literários. Identificação de tema, informações explícitas e implícitas. Distinção entre fato e opinião. Inferência de sentido de palavras e expressões. Recursos de expressividade e ironia/humor.
-2. Análise Linguística: Linguagem figurada. Classes de palavras e seu papel no texto. Processos de flexão e derivação. Tonicidade das palavras (sílaba tônica). Verbos (Indicativo e Subjuntivo). Pronomes (pessoais, demonstrativos e possessivos) e referencialidade.
-3. Mecanismos de Coesão: Retomada pronominal, substituição lexical (hiperônimos/hipônimos) e conectivos. Pontuação e concordância nominal/verbal.
+1. Leitura e interpretação de textos. 2. Ortografia oficial. 3. Acentuação gráfica. 4. Morfologia e Sintaxe. 5. Pontuação. 6. Concordância nominal e verbal.
 
-II - MATEMÁTICA
-1. Números: Naturais (leitura, escrita, ordenação e as 4 operações). Racionais (frações, decimais finitos e reta numérica). Equivalência, comparação e ordenação. Operações com decimais e frações (incluindo divisão por natural). Porcentagem e contagem.
-2. Álgebra: Termo desconhecido, propriedades da igualdade e equivalência. Partes proporcionais. Padrões e sequências.
-3. Geometria: Figuras planas (características e ângulos). Coordenadas cartesianas (1º quadrante). Figuras poligonais em malhas (ampliação/redução). Figuras espaciais (características e planificações).
-4. Grandezas e Medidas: Comprimento, área, massa, tempo, temperatura e capacidade. Perímetro e área de polígonos. Volume de cubos.
-5. Probabilidade e Estatística: Experimentos aleatórios, espaço amostral e cálculo de chances. Leitura e interpretação de tabelas e gráficos.
+II - MATEMÁTICA BÁSICA
+1. Operações com conjuntos. 2. Razão e proporção. 3. Regra de três. 4. Porcentagem. 5. Probabilidade e Estatística básica.
+
+III - DIREITOS HUMANOS E LEGISLAÇÃO APLICADA
+1. Declaração Universal dos Direitos Humanos. 2. Lei Maria da Penha (Lei nº 11.340/2006). 3. Estatuto da Criança e do Adolescente (Lei nº 8.069/1990). 4. Estatuto do Idoso.
+
+IV - NOÇÕES DE DIREITO PENAL E ADMINISTRATIVO
+1. Crimes e Penas. 2. Excludentes de Ilicitude. 3. Princípios da Administração Pública.
 `;
 
 const subtopics = {
     'LÍNGUA PORTUGUESA': [
-        'Compreensão de Crônicas',
-        'Interpretação de Notícias',
-        'Análise de Poemas',
-        'Leitura de Tirinhas',
-        'Figuras de Linguagem',
-        'Classes de Palavras',
-        'Uso de Conjunções e Conectivos',
-        'Regras de Pontuação',
-        'Concordância Nominal e Verbal',
+        'Interpretação de Textos Judiciais e Informativos',
+        'Ortografia e Acentuação',
+        'Concordância Verbal e Nominal',
+        'Sintaxe da Oração e do Período',
+        'Pontuação Básica e Avançada',
     ],
-    'MATEMÁTICA': [
-        'Operações com Números Naturais',
-        'Soma e Subtração de Frações',
-        'Multiplicação e Divisão de Frações',
-        'Cálculos com Números Decimais',
-        'Porcentagem e Proporcionalidade',
-        'Resolução de Expressões (Álgebra)',
-        'Padrões e Sequências Lógicas',
-        'Perímetro e Área de Figuras Planas',
-        'Volume de Sólidos Geométricos',
-        'Coordenadas Cartesianas',
-        'Leitura de Tabelas e Gráficos',
-        'Cálculo de Probabilidade Simples',
+    'MATEMÁTICA BÁSICA': [
+        'Razão, Proporção e Regra de Três',
+        'Porcentagem e Aplicações',
+        'Análise Combinatória e Probabilidade',
+        'Operações com Conjuntos',
     ]
 };
 
@@ -91,7 +79,7 @@ export const getAIExplanation = async (question: Question, incorrectAnswer: stri
 
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-1.5-flash',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -145,8 +133,10 @@ export const getAIExplanation = async (question: Question, incorrectAnswer: stri
     }
 };
 
-export const generateQuestionFromEdital = async (subject: 'LÍNGUA PORTUGUESA' | 'MATEMÁTICA'): Promise<Question | null> => {
-    const randomSubtopic = subtopics[subject][Math.floor(Math.random() * subtopics[subject].length)];
+export const generateQuestionFromEdital = async (subject: string): Promise<Question | null> => {
+    const defaultSubtopics = ['Conceitos Básicos', 'Fundamentos', 'Aplicação Prática'];
+    const availableSubtopics = subtopics[subject as keyof typeof subtopics] || defaultSubtopics;
+    const randomSubtopic = availableSubtopics[Math.floor(Math.random() * availableSubtopics.length)];
     const randomDifficulty = difficulties[Math.floor(Math.random() * difficulties.length)];
 
     let portugueseInstruction = "";
@@ -172,7 +162,7 @@ export const generateQuestionFromEdital = async (subject: 'LÍNGUA PORTUGUESA' |
 
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-1.5-flash',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -199,8 +189,7 @@ export const generateQuestionFromEdital = async (subject: 'LÍNGUA PORTUGUESA' |
                 .trim();
 
             const generatedQuestion = JSON.parse(cleanText) as Omit<Question, 'id'>;
-            const typedSubject = subject === 'LÍNGUA PORTUGUESA' ? 'Língua Portuguesa' : 'Matemática Básica';
-            return { ...generatedQuestion, subject: typedSubject as any, id: `gen-${Date.now()}` };
+            return { ...generatedQuestion, subject: subject as any, id: `gen-${Date.now()}` };
         }
         throw new Error("Empty response from AI.");
 
@@ -265,7 +254,7 @@ export const generateTheoryLesson = async (topic: string, isDeepDive: boolean = 
 
         const response = await Promise.race([
             ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-1.5-flash',
                 contents: prompt,
                 config: {
                     systemInstruction: systemInstruction,
@@ -382,7 +371,7 @@ export const validateExamAnswer = async (question: Question, incorrectAnswer: st
 
     try {
         const response: GenerateContentResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-1.5-flash',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
@@ -456,7 +445,7 @@ export const generateReinforcementQuestions = async (subject: string, topic: str
 
         const response = await Promise.race([
             ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-1.5-flash',
                 contents: prompt,
                 config: {
                     responseMimeType: 'application/json',
