@@ -353,12 +353,22 @@ const StudyCenter: React.FC<StudyCenterProps> = ({ onSelectExam, setView, userPr
     };
 
     if (isLoading) {
-        const title = loadingSubject === 'Língua Portuguesa'
-            ? 'O Pai está revisando a gramática... 📚'
-            : 'O Pai está resumindo a matéria... ⚡';
-        const subtitle = loadingSubject === 'Língua Portuguesa'
-            ? 'Aguarde, a IA está preparando uma aula de português para você!'
-            : 'Aguarde, a IA está montando um conteúdo de matemática exclusivo!';
+        let title = 'O Pai está resumindo a matéria... ⚡';
+        let subtitle = 'Aguarde, a IA está preparando um conteúdo exclusivo para você!';
+
+        if (loadingSubject === 'Língua Portuguesa') {
+            title = 'O Pai está revisando a gramática... 📚';
+            subtitle = 'Aguarde, a IA está preparando uma aula de português para você!';
+        } else if (loadingSubject === 'Matemática Básica') {
+            title = 'O Pai está calculando os macetes... 🧮';
+            subtitle = 'Aguarde, a IA está montando um conteúdo de matemática exclusivo!';
+        } else if (loadingSubject === 'Direitos Humanos') {
+            title = 'O Pai está revisando os Direitos... ⚖️';
+            subtitle = 'Preparando os pontos chave da Declaração e do Pacto de San José!';
+        } else if (loadingSubject === 'Legislação Aplicada à PMERJ') {
+            title = 'O Pai está estudando o Estatuto... 🚔';
+            subtitle = 'Separando as melhores questões sobre a legislação da PMERJ!';
+        }
 
         return (
             <div className="flex flex-col items-center justify-center h-full text-center p-6">

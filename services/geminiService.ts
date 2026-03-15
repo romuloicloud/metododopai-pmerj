@@ -9,7 +9,7 @@ import { shuffleOptionsWithCorrectIndex } from '../src/utils/helpers';
 // Usamos uma inicialização segura que não crasha o app se a chave estiver ausente
 let ai: any;
 try {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    const apiKey = import.meta.env?.VITE_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
     if (apiKey) {
         ai = new GoogleGenAI({ apiKey });
         console.log("GoogleGenAI initialized successfully!");
@@ -22,41 +22,57 @@ try {
 
 
 const editalContentPlaceholder = `
-CONTEÚDO PROGRAMÁTICO - PMERJ SOLDADO
+CONTEÚDO PROGRAMÁTICO - PMERJ SOLDADO (FGV)
 
 I - LÍNGUA PORTUGUESA
-1. Leitura e interpretação de textos. 2. Ortografia oficial. 3. Acentuação gráfica. 4. Morfologia e Sintaxe. 5. Pontuação. 6. Concordância nominal e verbal.
+1. Leitura e interpretação de textos. 2. Ortografia oficial. 3. Acentuação gráfica. 4. Morfologia (Sintaxe e Classes de Palavras). 5. Pontuação. 6. Concordância nominal e verbal. 7. Regência nominal e verbal.
 
 II - MATEMÁTICA BÁSICA
-1. Operações com conjuntos. 2. Razão e proporção. 3. Regra de três. 4. Porcentagem. 5. Probabilidade e Estatística básica.
+1. Operações com conjuntos numéricos. 2. Razão e proporção. 3. Regra de três simples e composta. 4. Porcentagem. 5. Geometria básica (áreas e volumes). 6. Probabilidade e Estatística básica.
 
-III - DIREITOS HUMANOS E LEGISLAÇÃO APLICADA
-1. Declaração Universal dos Direitos Humanos. 2. Lei Maria da Penha (Lei nº 11.340/2006). 3. Estatuto da Criança e do Adolescente (Lei nº 8.069/1990). 4. Estatuto do Idoso.
+III - DIREITOS HUMANOS
+1. Declaração Universal dos Direitos Humanos. 2. Direitos e Garantias Fundamentais na CF/88 (Art. 5º). 3. Pacto de San José da Costa Rica. 4. Tortura e Tratamentos Cruéis.
 
-IV - NOÇÕES DE DIREITO PENAL E ADMINISTRATIVO
-1. Crimes e Penas. 2. Excludentes de Ilicitude. 3. Princípios da Administração Pública.
+IV - LEGISLAÇÃO APLICADA À PMERJ
+1. Estatuto dos Policiais Militares (Lei 443/81). 2. Lei de Abuso de Autoridade (Lei 13.869/19). 3. Lei Maria da Penha (Lei 11.340/06). 4. Estatuto do Desarmamento (Lei 10.826/03). 5. Hierarquia e Disciplina Militar.
 `;
 
 const subtopics = {
-    'LÍNGUA PORTUGUESA': [
+    'Língua Portuguesa': [
         'Interpretação de Textos Judiciais e Informativos',
         'Ortografia e Acentuação',
         'Concordância Verbal e Nominal',
         'Sintaxe da Oração e do Período',
         'Pontuação Básica e Avançada',
+        'Classes de Palavras e suas Funções'
     ],
-    'MATEMÁTICA BÁSICA': [
+    'Matemática Básica': [
         'Razão, Proporção e Regra de Três',
-        'Porcentagem e Aplicações',
-        'Análise Combinatória e Probabilidade',
-        'Operações com Conjuntos',
+        'Porcentagem e Aplicações no Dia a Dia',
+        'Probabilidade e Estatística Básica',
+        'Operações com Conjuntos Numéricos',
+        'Geometria Básica: Áreas e Volumes'
+    ],
+    'Direitos Humanos': [
+        'Dignidade da Pessoa Humana na CF/88',
+        'Pacto de San José da Costa Rica e Policiamento',
+        'Declaração Universal dos Direitos Humanos',
+        'Combate à Tortura e Abuso de Poder',
+        'Direitos e Garantias Fundamentais (Art 5º)'
+    ],
+    'Legislação Aplicada à PMERJ': [
+        'Lei Maria da Penha e Atuação Policial',
+        'Estatuto dos Policiais Militares (Deveres e Direitos)',
+        'Lei de Abuso de Autoridade (Prevenção)',
+        'Estatuto do Desarmamento (Posse e Porte)',
+        'Hierarquia e Disciplina na PMERJ'
     ]
 };
 
 const difficulties = [
     'Fácil (nível de dificuldade similar à prova de 2017)',
     'Médio (nível de dificuldade similar à prova de 2022)',
-    'Desafio (nível de dificuldade similar à prova de 2025)',
+    'Desafio (nível de dificuldade similar à prova de FGV inédita)',
 ];
 
 const portugueseTextTypes = ['uma crônica curta', 'uma notícia breve', 'um poema simples', 'uma tirinha'];
@@ -119,8 +135,8 @@ export const getAIExplanation = async (question: Question, incorrectAnswer: stri
         }
         return null;
 
-    } catch (error) {
-        console.error("Error fetching AI explanation:", error);
+    } catch (error: any) {
+        console.error("Error fetching AI explanation. Details:", error?.message || error);
         return {
             attentionDetail: "O Método do Pai identificou uma divergência na sua resposta de acordo com a interpretação oficial da banca.",
             keyInsight: "A banca costuma cobrar detalhes específicos e exceções à regra neste tipo de assunto. Fique atento às 'pegadinhas' (palavras como 'sempre', 'nunca', 'exceto').",
@@ -413,8 +429,8 @@ export const validateExamAnswer = async (question: Question, incorrectAnswer: st
         }
         return null;
 
-    } catch (error) {
-        console.error("Error validating exam answer:", error);
+    } catch (error: any) {
+        console.error("Error validating exam answer:", error?.message || error);
         return getAIExplanation(question, incorrectAnswer); // Fallback to the generic explanation
     }
 };
